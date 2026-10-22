@@ -22,7 +22,7 @@ Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
 ## Kurulum (supabase.com bulut projesi)
 
 1. [supabase.com](https://supabase.com)'da bir proje açın.
-2. **SQL Editor** → `supabase/migrations/0001_init.sql` içeriğini yapıştırıp çalıştırın.
+2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001`, `0002`) yapıştırıp çalıştırın.
 3. Ortam değişkenleri:
    ```bash
    cp .env.example .env.local   # değerleri Supabase → Project Settings → API'den doldurun
@@ -45,7 +45,17 @@ Seed sonrası giriş: `admin@lineclass.test`, `aisel@lineclass.test` (sınıf ö
 |---|---|---|
 | **Super Admin** | `/admin`, `/admin/manage` | Kullanıcı oluşturma + rol, sınıf oluşturma + sınıf öğretmeni atama, tüm öğrenci/not/atama yönetimi, tüm notları görme ve silme |
 | **Sınıf Öğretmeni** | `/admin` (Sınıfım), `/teacher` (Derslerim) | Kendi sınıfının öğrencilerini ve derse giren öğretmen atamalarını yönetir; sınıfındaki öğrencilere yazılan **tüm** notları görür; derse girdiği sınıflara not yazar |
-| **Branş Öğretmeni** | `/teacher` | İlk girişte ad + branş seçer; atandığı sınıfları → fotoğraflı öğrenci kartlarını görür; not ekler (yazılı veya 🎤 sesle), yalnızca **kendi** notlarını görür |
+| **Branş Öğretmeni** | `/join/<link>` → `/teacher` | **Şifre yok:** sınıf öğretmeninin gönderdiği sınıf linkini açar, adına dokunur ya da ad + branş seçer; atandığı sınıfları → fotoğraflı öğrenci kartlarını görür; not ekler (yazılı veya 🎤 sesle), yalnızca **kendi** notlarını görür |
+
+### Sınıf davet linki (şifresiz branş öğretmeni)
+
+Sınıf öğretmeni **Öğretmen davet et** ekranından sınıfa özel linki kopyalar / WhatsApp ile paylaşır. Linki açan öğretmen:
+- daha önce katıldıysa listeden adına dokunur,
+- ilk kez geliyorsa adını ve branşını seçer (aynı ad + branş başka bir sınıftan geldiyse aynı hesap kullanılır).
+
+Oturum o telefonda açık kalır; bir daha link açmasına gerek yoktur. Link yanlış kişiye giderse **yeni link oluştur** ile eski link anında geçersiz olur. Admin ve sınıf öğretmenleri her zaman şifreyle girer; link onların hesaplarını açamaz.
+
+> Not: Linke sahip olan herkes o sınıfın branş öğretmenlerinden biri olarak not yazabilir — kolaylık için bilinçli bir takas. Linki yalnızca öğretmen grubuyla paylaşın.
 
 Yetkiler arayüzde değil **veritabanında (RLS)** uygulanır; bkz. `0001_init.sql` içindeki `can_access_class`, `is_class_teacher_of` fonksiyonları ve politikalar.
 
@@ -53,6 +63,7 @@ Yetkiler arayüzde değil **veritabanında (RLS)** uygulanır; bkz. `0001_init.s
 
 ```
 supabase/migrations/0001_init.sql   Şema, trigger, RLS, storage bucket
+supabase/migrations/0002_class_join_links.sql  Sınıf davet linki (join_token, link yenileme)
 scripts/seed.mjs                    Demo kullanıcı / sınıf / öğrenci / not
 src/
   proxy.ts                          (Next 16'da middleware → proxy) oturum yenileme + /login yönlendirmesi

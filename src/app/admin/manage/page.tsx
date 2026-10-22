@@ -17,10 +17,10 @@ export default async function ManagePage(props: PageProps<"/admin/manage">) {
   const supabase = await createClient();
 
   const [{ data: users }, { data: classes }] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email, role, branch").order("full_name"),
+    supabase.from("profiles").select("id, full_name, email, role, branch, via_link").order("full_name"),
     supabase.from("classes").select("id, name, class_teacher_id").order("name"),
   ]);
-  const people = (users ?? []) as Profile[];
+  const people = (users ?? []) as (Profile & { via_link: boolean })[];
   const teachers = people.filter((u) => u.role !== "super_admin");
 
   return (
@@ -44,12 +44,15 @@ export default async function ManagePage(props: PageProps<"/admin/manage">) {
         {tab === "users" ? (
           <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
             <section className="card h-fit">
-              <h2 className="mb-3 text-lg font-bold">Yeni kullanıcı</h2>
+              <h2 className="mb-1 text-lg font-bold">Yeni kullanıcı</h2>
+              <p className="mb-3 text-sm text-slate-500">
+                Admin ve sınıf öğretmenleri için. Branş öğretmenleri hesap gerektirmez; sınıf davet linkiyle katılır.
+              </p>
               <ActionForm action={createUser} submitLabel="Kullanıcı Oluştur">
                 <input name="full_name" placeholder="Ad Soyad" required className="input" />
                 <input name="email" type="email" placeholder="E-posta" required className="input" />
                 <input name="password" type="text" placeholder="Geçici şifre (min 8)" minLength={8} required className="input" />
-                <select name="role" defaultValue="branch_teacher" className="input">
+                <select name="role" defaultValue="class_teacher" className="input">
                   {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
                     <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                   ))}
@@ -71,7 +74,7 @@ export default async function ManagePage(props: PageProps<"/admin/manage">) {
                     <div className="min-w-0 flex-1 basis-full sm:basis-auto">
                       <p className="truncate font-medium">{u.full_name || "—"}</p>
                       <p className="truncate text-xs text-slate-500">
-                        {u.email}
+                        {u.via_link ? "Sınıf linkiyle katıldı (şifresiz)" : u.email}
                         {u.branch && ` · ${u.branch}`}
                       </p>
                     </div>

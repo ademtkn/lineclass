@@ -53,6 +53,11 @@ export default function LoginPage() {
             {pending ? "Giriş yapılıyor…" : "Giriş Yap"}
           </button>
         </form>
+
+        <p className="mt-6 rounded-2xl bg-white/60 px-4 py-3 text-center text-sm text-slate-500 ring-1 ring-slate-100">
+          <strong className="text-slate-700">Branş öğretmeniyseniz</strong> şifreye gerek yok: sınıf öğretmeninizin
+          gönderdiği linki açın.
+        </p>
       </div>
     </main>
   );

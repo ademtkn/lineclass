@@ -1,11 +1,13 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ActionForm";
 import { AppHeader } from "@/components/AppHeader";
 import { Avatar } from "@/components/Avatar";
+import { InviteLinkCard } from "@/components/InviteLinkCard";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
-import { addStudent, assignTeacher, deleteStudent, unassignTeacher } from "../../actions";
+import { addStudent, assignTeacher, deleteStudent, regenerateJoinToken, unassignTeacher } from "../../actions";
 
 export default async function ManageClassPage(props: PageProps<"/admin/classes/[classId]">) {
   const { classId } = await props.params;
@@ -14,7 +16,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
 
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, name, class_teacher_id")
+    .select("id, name, class_teacher_id, join_token")
     .eq("id", classId)
     .maybeSingle();
   if (!cls || (profile.role !== "super_admin" && cls.class_teacher_id !== profile.id)) notFound();
@@ -28,13 +30,18 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
     supabase.from("teacher_class_access").select("teacher_id").eq("class_id", classId),
     supabase
       .from("profiles")
-      .select("id, full_name, email, role, branch")
+      .select("id, full_name, email, role, branch, via_link")
       .in("role", ["branch_teacher", "class_teacher"])
       .order("full_name"),
   ]);
 
   const assignedIds = new Set(access?.map((a) => a.teacher_id));
-  const allTeachers = (teachers ?? []) as Profile[];
+  const allTeachers = (teachers ?? []) as (Profile & { via_link: boolean })[];
+
+  // Davet linki, uygulamanın açıldığı adresle üretilir (yerelde localhost, yayında alan adı)
+  const h = await headers();
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+  const inviteUrl = `${origin}/join/${cls.join_token}`;
   const assigned = allTeachers.filter((t) => assignedIds.has(t.id));
   const available = allTeachers.filter((t) => !assignedIds.has(t.id));
 
@@ -43,12 +50,17 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
       <AppHeader profile={profile} title={`${cls.name} · Yönetim`} backHref={`/admin?class=${classId}`} />
       <main className="mx-auto grid max-w-5xl gap-5 px-4 py-5 lg:grid-cols-2">
         {/* ------------------------------------------------ Branş öğretmenleri */}
-        <section className="space-y-3">
+        <section className="min-w-0 space-y-3">
+          <InviteLinkCard
+            className={cls.name}
+            url={inviteUrl}
+            regenerate={regenerateJoinToken.bind(null, classId)}
+          />
           <h2 className="text-lg font-bold">Derse giren öğretmenler</h2>
           <form action={assignTeacher} className="card flex gap-2">
             <input type="hidden" name="class_id" value={classId} />
             <select name="teacher_id" required className="input flex-1" defaultValue="">
-              <option value="" disabled>Öğretmen seçin…</option>
+              <option value="" disabled>Kayıtlı öğretmen ata…</option>
               {available.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.full_name || t.email} {t.branch ? `(${t.branch})` : ""}
@@ -64,7 +76,10 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
               <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{t.full_name || t.email}</p>
-                  <p className="text-xs text-slate-500">{t.branch ?? "Branş seçilmemiş"}</p>
+                  <p className="text-xs text-slate-500">
+                    {t.branch ?? "Branş seçilmemiş"}
+                    {t.via_link && " · link ile katıldı"}
+                  </p>
                 </div>
                 <form action={unassignTeacher}>
                   <input type="hidden" name="class_id" value={classId} />
@@ -77,7 +92,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
         </section>
 
         {/* ------------------------------------------------ Öğrenciler */}
-        <section className="space-y-3">
+        <section className="min-w-0 space-y-3">
           <h2 className="text-lg font-bold">Öğrenciler ({students?.length ?? 0})</h2>
 
           <div className="card">

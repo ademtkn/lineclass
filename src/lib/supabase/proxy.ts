@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/join/"];
 
 /** Oturum çerezini yeniler; giriş yapmamış kullanıcıyı /login'e yollar. */
 export async function updateSession(request: NextRequest) {

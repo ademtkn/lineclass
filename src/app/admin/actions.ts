@@ -154,3 +154,11 @@ export async function unassignTeacher(fd: FormData) {
     .eq("teacher_id", str(fd, "teacher_id"));
   revalidatePath(`/admin/classes/${classId}`);
 }
+
+/** Sınıf davet linkini yeniler; eski link anında geçersiz olur (yetkiyi DB fonksiyonu denetler). */
+export async function regenerateJoinToken(classId: string) {
+  await requireRole("super_admin", "class_teacher");
+  const supabase = await createClient();
+  await supabase.rpc("regenerate_join_token", { p_class_id: classId });
+  revalidatePath(`/admin/classes/${classId}`);
+}
