@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { JOIN_CODE_RE } from "@/lib/join-code";
 
-const PUBLIC_PATHS = ["/login", "/join/"];
+const PUBLIC_PATHS = ["/login"];
 
 /** Oturum çerezini yeniler; giriş yapmamış kullanıcıyı /login'e yollar. */
 export async function updateSession(request: NextRequest) {
@@ -32,7 +33,8 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
+  // Kök adresteki sınıf davet linkleri (örn. /5a-k7m2qxp) girişsiz açılır
+  const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p)) || JOIN_CODE_RE.test(path.slice(1));
 
   if (!user && !isPublic && !path.startsWith("/api")) {
     const url = request.nextUrl.clone();

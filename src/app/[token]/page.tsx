@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { type Profile } from "@/lib/types";
 import { findClassByToken } from "@/lib/join";
+import { JOIN_CODE_RE } from "@/lib/join-code";
 import { joinAsCurrent, joinAsExisting, joinAsNew, switchUser } from "./actions";
 import { TeacherPicker } from "./TeacherPicker";
 
 export const metadata = { title: "Sınıfa katıl · LineClass" };
 
-export default async function JoinPage(props: PageProps<"/join/[token]">) {
+export default async function JoinPage(props: PageProps<"/[token]">) {
   const { token } = await props.params;
   const { adim } = await props.searchParams;
+  // Kök adresteki her şey buraya düşer; davet kodu biçiminde olmayanlar normal 404
+  if (!JOIN_CODE_RE.test(token)) notFound();
   const cls = await findClassByToken(token);
 
   if (!cls) {
@@ -54,7 +57,7 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
             </form>
           ) : (
             <Link
-              href={`/join/${token}?adim=ogretmen`}
+              href={`/${token}?adim=ogretmen`}
               className="mt-5 flex min-h-14 items-center justify-center rounded-2xl bg-white font-semibold text-brand-700 transition active:scale-[0.98]"
             >
               Devam et →
@@ -74,7 +77,7 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
   }
 
   // 2. adım bir oturum varken açılırsa karşılama kartındaki kısayola dön
-  if (profile) redirect(`/join/${token}`);
+  if (profile) redirect(`/${token}`);
 
   // Bu sınıfa daha önce katılmış branş öğretmenleri
   const admin = createAdminClient();
@@ -98,7 +101,7 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
   }));
 
   return (
-    <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/join/${token}`}>
+    <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/${token}`}>
       <TeacherPicker
         teachers={teachers}
         classSubjects={classSubjects}

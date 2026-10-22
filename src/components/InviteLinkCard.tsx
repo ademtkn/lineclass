@@ -12,7 +12,10 @@ type Props = {
 export function InviteLinkCard({ className, url, regenerate }: Props) {
   const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
-  const message = `LineClass · ${className} sınıfı için not girişi linkiniz (şifre gerekmez):\n${url}`;
+  // Ekranda protokolsüz, sade gösterim: class.line.kg/5a-k7m2qxp
+  const { host, pathname } = new URL(url);
+  const code = pathname.slice(1);
+  const message = `${className} sınıfı · LineClass not girişi (şifre gerekmez):\n${url}`;
 
   async function copy() {
     try {
@@ -52,9 +55,15 @@ export function InviteLinkCard({ className, url, regenerate }: Props) {
         </p>
       </div>
 
-      <div className="truncate rounded-2xl bg-white px-4 py-3 font-mono text-xs text-slate-600 ring-1 ring-slate-200">
-        {url}
-      </div>
+      <button
+        type="button"
+        onClick={copy}
+        title="Kopyalamak için dokunun"
+        className="block w-full truncate rounded-2xl bg-white px-4 py-3 text-center text-lg tracking-wide ring-1 ring-slate-200 transition active:scale-[0.99]"
+      >
+        <span className="text-slate-400">{host}/</span>
+        <span className="font-bold text-slate-900">{code}</span>
+      </button>
 
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={copy} className="btn-ghost">

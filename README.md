@@ -22,7 +22,7 @@ Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
 ## Kurulum (supabase.com bulut projesi)
 
 1. [supabase.com](https://supabase.com)'da bir proje açın.
-2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001`, `0002`, `0003`) yapıştırıp çalıştırın.
+2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001` … `0004`) yapıştırıp çalıştırın.
 3. Ortam değişkenleri:
    ```bash
    cp .env.example .env.local   # değerleri Supabase → Project Settings → API'den doldurun
@@ -57,6 +57,8 @@ Sınıf öğretmeni **Öğretmen davet et → Dersler ve öğretmenleri** bölü
 
 ### Sınıf davet linki (şifresiz branş öğretmeni)
 
+Link biçimi kısa ve okunabilir: `<site>/<sınıf>-<7 karakter>`, örn. `class.line.kg/5a-k7m2qxp`. Karıştırılabilen karakterler (0/o, 1/l/i) kullanılmaz. Alan adı `NEXT_PUBLIC_SITE_URL` ile belirlenir.
+
 Sınıf öğretmeni **Öğretmen davet et** ekranından sınıfa özel linki kopyalar / WhatsApp ile paylaşır. Linki açan öğretmen:
 - daha önce katıldıysa listeden adına dokunur,
 - ilk kez geliyorsa adını ve branşını seçer (aynı ad + branş başka bir sınıftan geldiyse aynı hesap kullanılır).
@@ -73,6 +75,7 @@ Yetkiler arayüzde değil **veritabanında (RLS)** uygulanır; bkz. `0001_init.s
 supabase/migrations/0001_init.sql   Şema, trigger, RLS, storage bucket
 supabase/migrations/0002_class_join_links.sql  Sınıf davet linki (join_token, link yenileme)
 supabase/migrations/0003_class_subjects.sql     Sınıf dersleri + derse öğretmen atama (erişim tetikleyicisi)
+supabase/migrations/0004_short_join_codes.sql   Kısa davet kodu (5a-k7m2qxp)
 scripts/seed.mjs                    Demo kullanıcı / sınıf / öğrenci / not
 src/
   proxy.ts                          (Next 16'da middleware → proxy) oturum yenileme + /login yönlendirmesi
@@ -91,6 +94,7 @@ src/
     admin/                          Sınıf filtresi + öğrenci kartları → students/[studentId] (tüm notlar + çeviri)
       classes/[classId]/            Öğrenci ekle (fotoğraflı) / öğretmen ata
       manage/                       Super admin: kullanıcılar & sınıflar
+    [token]/                        Sınıf davet sayfası (kök adreste kısa kod: /5a-k7m2qxp)
     api/translate/route.ts          POST { noteId, lang } → çeviri (note_translations'ta önbellek)
 ```
 

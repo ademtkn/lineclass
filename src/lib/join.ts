@@ -1,9 +1,11 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
 
+import { JOIN_CODE_RE } from "@/lib/join-code";
+
 /** Token'a ait sınıfı RLS'siz okur (linki açan kişi henüz giriş yapmamış olabilir). */
 export async function findClassByToken(token: string) {
-  if (!/^[a-f0-9]{32}$/.test(token)) return null;
+  if (!JOIN_CODE_RE.test(token)) return null;
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("classes")

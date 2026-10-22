@@ -35,7 +35,7 @@ async function grantAccess(teacherId: string, classId: string) {
 export async function joinAsCurrent(token: string) {
   const cls = await findClassByToken(token);
   const profile = await getProfile();
-  if (!cls || !profile) redirect(`/join/${token}`);
+  if (!cls || !profile) redirect(`/${token}`);
 
   if (profile.role !== "super_admin") await grantAccess(profile.id, cls.id);
   redirect(`/teacher/classes/${cls.id}`);
@@ -45,7 +45,7 @@ export async function joinAsCurrent(token: string) {
 export async function joinAsExisting(token: string, fd: FormData) {
   const teacherId = String(fd.get("teacher_id") ?? "");
   const cls = await findClassByToken(token);
-  if (!cls) redirect(`/join/${token}`);
+  if (!cls) redirect(`/${token}`);
 
   const admin = createAdminClient();
   const [{ data: teacher }, { data: access }] = await Promise.all([
@@ -59,7 +59,7 @@ export async function joinAsExisting(token: string, fd: FormData) {
   ]);
   // Link yalnızca bu sınıfa atanmış BRANŞ öğretmenleri için şifresiz giriş sağlar;
   // sınıf öğretmeni ve admin hesapları her zaman şifreyle girer.
-  if (!teacher || teacher.role !== "branch_teacher" || !access) redirect(`/join/${token}`);
+  if (!teacher || teacher.role !== "branch_teacher" || !access) redirect(`/${token}`);
 
   await signInWithoutPassword(teacher.email);
   redirect(`/teacher/classes/${cls.id}`);
@@ -126,5 +126,5 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
 export async function switchUser(token: string) {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect(`/join/${token}?adim=ogretmen`);
+  redirect(`/${token}?adim=ogretmen`);
 }

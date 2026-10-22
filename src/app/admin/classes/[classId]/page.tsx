@@ -43,7 +43,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
   // Davet linki, uygulamanın açıldığı adresle üretilir (yerelde localhost, yayında alan adı)
   const h = await headers();
   const origin = process.env.NEXT_PUBLIC_SITE_URL || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const inviteUrl = `${origin}/join/${cls.join_token}`;
+  const inviteUrl = `${origin}/${cls.join_token}`;
   const assigned = allTeachers.filter((t) => assignedIds.has(t.id));
   const available = allTeachers.filter((t) => !assignedIds.has(t.id));
   const subjectsOf = (teacherId: string) =>
