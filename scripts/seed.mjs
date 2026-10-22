@@ -55,6 +55,18 @@ await db.from("teacher_class_access").upsert([
   { teacher_id: ids["irina@lineclass.test"], class_id: c5a.id },
 ]);
 
+// Sınıf dersleri ve öğretmenleri (tetikleyici sınıf erişimini de verir)
+await db.from("class_subjects").upsert(
+  [
+    { class_id: c5a.id, subject: "Matematik", teacher_id: ids["mehmet@lineclass.test"] },
+    { class_id: c5a.id, subject: "Rusça", teacher_id: ids["irina@lineclass.test"] },
+    { class_id: c5a.id, subject: "Kırgızca", teacher_id: ids["aisel@lineclass.test"] },
+    { class_id: c5a.id, subject: "Türkçe", teacher_id: null },
+    { class_id: c6b.id, subject: "Matematik", teacher_id: ids["mehmet@lineclass.test"] },
+  ],
+  { onConflict: "class_id,subject", ignoreDuplicates: true },
+);
+
 const { count } = await db.from("students").select("*", { count: "exact", head: true });
 if (!count) {
   const names = [

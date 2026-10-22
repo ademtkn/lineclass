@@ -6,30 +6,37 @@ import { BRANCHES } from "@/lib/types";
 import type { JoinState } from "./actions";
 
 type Teacher = { id: string; full_name: string; branch: string | null };
+type ClassSubject = { subject: string; teacherId: string | null; teacherName: string | null };
 
 type Props = {
   teachers: Teacher[];
+  /** Sınıf öğretmeninin bu sınıfa eklediği dersler ve atanan öğretmenleri */
+  classSubjects: ClassSubject[];
   joinExisting: (fd: FormData) => Promise<void>;
   joinNew: (prev: JoinState, fd: FormData) => Promise<JoinState>;
 };
 
 /** Önce branş, sonra isim: o branştaki kayıtlı öğretmenler tek dokunuşla, yoksa ad yazılır. */
-export function TeacherPicker({ teachers, joinExisting, joinNew }: Props) {
+export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }: Props) {
   const [branch, setBranch] = useState<string | null>(null);
   const [typingNew, setTypingNew] = useState(false);
   const [state, newAction] = useActionState<JoinState, FormData>(joinNew, {});
 
-  // Bu sınıfta öğretmeni olan branşlar önce, sonra diğerleri
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    teachers.forEach((t) => t.branch && m.set(t.branch, (m.get(t.branch) ?? 0) + 1));
-    return m;
-  }, [teachers]);
-  const branches = useMemo(
-    () => [...BRANCHES].sort((a, b) => Number(counts.has(b)) - Number(counts.has(a))),
-    [counts],
+  // Bir branşa basınca listelenecekler: o branştaki öğretmenler + o derse atanmış öğretmen
+  const subjectOf = useMemo(() => new Map(classSubjects.map((x) => [x.subject, x])), [classSubjects]);
+  const teachersFor = useMemo(
+    () => (b: string) =>
+      teachers.filter((t) => t.branch === b || (subjectOf.get(b)?.teacherId ?? null) === t.id),
+    [teachers, subjectOf],
   );
-  const inBranch = teachers.filter((t) => t.branch === branch);
+
+  // Sıra: öğretmeni olan branşlar → sınıfın diğer dersleri → kalan branşlar
+  const branches = useMemo(() => {
+    const rank = (b: string) => (teachersFor(b).length ? 0 : subjectOf.has(b) ? 1 : 2);
+    const extra = classSubjects.map((x) => x.subject).filter((x) => !BRANCHES.includes(x));
+    return [...BRANCHES, ...extra].sort((a, b) => rank(a) - rank(b));
+  }, [teachersFor, subjectOf, classSubjects]);
+  const inBranch = branch ? teachersFor(branch) : [];
   const showNewForm = branch !== null && (typingNew || inBranch.length === 0);
 
   if (!branch) {
@@ -43,13 +50,13 @@ export function TeacherPicker({ teachers, joinExisting, joinNew }: Props) {
               type="button"
               onClick={() => setBranch(b)}
               className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-3 text-center font-semibold ring-1 transition active:scale-[0.97] ${
-                counts.has(b) ? "bg-white text-slate-800 ring-brand-200 shadow-sm" : "bg-slate-50 text-slate-600 ring-slate-200"
+                teachersFor(b).length || subjectOf.has(b)
+                  ? "bg-white text-slate-800 ring-brand-200 shadow-sm"
+                  : "bg-slate-50 text-slate-600 ring-slate-200"
               }`}
             >
               {b}
-              {counts.has(b) && (
-                <span className="text-[11px] font-medium text-brand-600">{counts.get(b)} öğretmen</span>
-              )}
+              <BranchHint count={teachersFor(b).length} subject={subjectOf.get(b)} />
             </button>
           ))}
         </div>
@@ -118,6 +125,14 @@ export function TeacherPicker({ teachers, joinExisting, joinNew }: Props) {
       )}
     </section>
   );
+}
+
+function BranchHint({ count, subject }: { count: number; subject?: ClassSubject }) {
+  if (count) return <span className="text-[11px] font-medium text-brand-600">{count} öğretmen</span>;
+  if (subject?.teacherName)
+    return <span className="max-w-full truncate text-[11px] font-medium text-slate-500">{subject.teacherName}</span>;
+  if (subject) return <span className="text-[11px] font-medium text-amber-600">öğretmen bekleniyor</span>;
+  return null;
 }
 
 function TeacherButton({ name }: { name: string }) {

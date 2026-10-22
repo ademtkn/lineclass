@@ -73,9 +73,16 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
   const fullName = String(fd.get("full_name") ?? "").trim().replace(/\s+/g, " ");
   const branch = String(fd.get("branch") ?? "");
   if (fullName.length < 3) return { error: "Lütfen adınızı ve soyadınızı yazın." };
-  if (!BRANCHES.includes(branch)) return { error: "Lütfen branşınızı seçin." };
-
   const admin = createAdminClient();
+  if (!BRANCHES.includes(branch)) {
+    const { data: custom } = await admin
+      .from("class_subjects")
+      .select("id")
+      .eq("class_id", cls.id)
+      .eq("subject", branch)
+      .maybeSingle();
+    if (!custom) return { error: "Lütfen branşınızı seçin." };
+  }
 
   // Aynı ad + branşla daha önce (başka bir sınıfın linkinden) katılmışsa aynı hesabı kullan
   const { data: existing } = await admin
@@ -104,6 +111,13 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
   }
 
   await grantAccess(teacherId, cls.id);
+  // Branşı, sınıfın öğretmeni olmayan bir dersiyle eşleşiyorsa o derse otomatik ata
+  await admin
+    .from("class_subjects")
+    .update({ teacher_id: teacherId })
+    .eq("class_id", cls.id)
+    .eq("subject", branch)
+    .is("teacher_id", null);
   await signInWithoutPassword(email!);
   redirect(`/teacher/classes/${cls.id}`);
 }

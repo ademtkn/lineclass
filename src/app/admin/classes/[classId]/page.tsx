@@ -4,6 +4,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { AppHeader } from "@/components/AppHeader";
 import { Avatar } from "@/components/Avatar";
 import { InviteLinkCard } from "@/components/InviteLinkCard";
+import { SubjectAssignments } from "@/components/SubjectAssignments";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
@@ -21,7 +22,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
     .maybeSingle();
   if (!cls || (profile.role !== "super_admin" && cls.class_teacher_id !== profile.id)) notFound();
 
-  const [{ data: students }, { data: access }, { data: teachers }] = await Promise.all([
+  const [{ data: students }, { data: access }, { data: teachers }, { data: subjects }] = await Promise.all([
     supabase
       .from("students")
       .select("id, first_name, last_name, photo_url")
@@ -33,6 +34,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
       .select("id, full_name, email, role, branch, via_link")
       .in("role", ["branch_teacher", "class_teacher"])
       .order("full_name"),
+    supabase.from("class_subjects").select("id, subject, teacher_id").eq("class_id", classId).order("subject"),
   ]);
 
   const assignedIds = new Set(access?.map((a) => a.teacher_id));
@@ -44,6 +46,8 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
   const inviteUrl = `${origin}/join/${cls.join_token}`;
   const assigned = allTeachers.filter((t) => assignedIds.has(t.id));
   const available = allTeachers.filter((t) => !assignedIds.has(t.id));
+  const subjectsOf = (teacherId: string) =>
+    (subjects ?? []).filter((x) => x.teacher_id === teacherId).map((x) => x.subject);
 
   return (
     <>
@@ -56,7 +60,16 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
             url={inviteUrl}
             regenerate={regenerateJoinToken.bind(null, classId)}
           />
-          <h2 className="text-lg font-bold">Derse giren öğretmenler</h2>
+          <SubjectAssignments
+            classId={classId}
+            subjects={subjects ?? []}
+            teachers={allTeachers.map(({ id, full_name, email, branch }) => ({ id, full_name, email, branch }))}
+          />
+
+          <h2 className="pt-2 text-lg font-bold">Sınıfa erişimi olan öğretmenler</h2>
+          <p className="-mt-2 text-xs text-slate-500">
+            Derse atananlar ve davet linkiyle katılanlar. Kaldırılan öğretmen derslerinden de düşer.
+          </p>
           <form action={assignTeacher} className="card flex gap-2">
             <input type="hidden" name="class_id" value={classId} />
             <select name="teacher_id" required className="input flex-1" defaultValue="">
@@ -77,7 +90,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
                 <div className="min-w-0">
                   <p className="truncate font-medium">{t.full_name || t.email}</p>
                   <p className="text-xs text-slate-500">
-                    {t.branch ?? "Branş seçilmemiş"}
+                    {subjectsOf(t.id).length ? `Ders: ${subjectsOf(t.id).join(", ")}` : (t.branch ?? "Branş seçilmemiş") + " · ders atanmamış"}
                     {t.via_link && " · link ile katıldı"}
                   </p>
                 </div>

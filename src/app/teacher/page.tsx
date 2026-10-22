@@ -22,10 +22,12 @@ export default async function TeacherDashboard() {
 
   const supabase = await createClient();
   // RLS sayesinde sadece öğretmenin atandığı (veya sınıf öğretmeni olduğu) sınıflar döner.
-  const { data: classes } = await supabase
-    .from("classes")
-    .select("id, name, class_teacher_id, students(count)")
-    .order("name");
+  const [{ data: classes }, { data: mySubjects }] = await Promise.all([
+    supabase.from("classes").select("id, name, class_teacher_id, students(count)").order("name"),
+    supabase.from("class_subjects").select("class_id, subject").eq("teacher_id", profile.id),
+  ]);
+  const subjectsIn = (classId: string) =>
+    (mySubjects ?? []).filter((x) => x.class_id === classId).map((x) => x.subject);
 
   return (
     <>
@@ -45,7 +47,14 @@ export default async function TeacherDashboard() {
                     href={`/teacher/classes/${c.id}`}
                     className="card flex aspect-[4/3] flex-col justify-between bg-gradient-to-br from-brand-500 to-brand-700 p-5 text-white ring-0 transition active:scale-[0.98]"
                   >
-                    <span className="text-3xl font-bold">{c.name}</span>
+                    <span>
+                      <span className="block text-3xl font-bold">{c.name}</span>
+                      {subjectsIn(c.id).length > 0 && (
+                        <span className="mt-1 inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium">
+                          {subjectsIn(c.id).join(" · ")}
+                        </span>
+                      )}
+                    </span>
                     <span className="text-sm text-white/80">
                       {count} öğrenci
                       {c.class_teacher_id === profile.id && " · Sınıf öğretmeni"}

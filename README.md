@@ -22,7 +22,7 @@ Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
 ## Kurulum (supabase.com bulut projesi)
 
 1. [supabase.com](https://supabase.com)'da bir proje açın.
-2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001`, `0002`) yapıştırıp çalıştırın.
+2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001`, `0002`, `0003`) yapıştırıp çalıştırın.
 3. Ortam değişkenleri:
    ```bash
    cp .env.example .env.local   # değerleri Supabase → Project Settings → API'den doldurun
@@ -47,6 +47,14 @@ Seed sonrası giriş: `admin@lineclass.test`, `aisel@lineclass.test` (sınıf ö
 | **Sınıf Öğretmeni** | `/admin` (Sınıfım), `/teacher` (Derslerim) | Kendi sınıfının öğrencilerini ve derse giren öğretmen atamalarını yönetir; sınıfındaki öğrencilere yazılan **tüm** notları görür; derse girdiği sınıflara not yazar |
 | **Branş Öğretmeni** | `/join/<link>` → `/teacher` | **Şifre yok:** sınıf öğretmeninin gönderdiği sınıf linkini açar, adına dokunur ya da ad + branş seçer; atandığı sınıfları → fotoğraflı öğrenci kartlarını görür; not ekler (yazılı veya 🎤 sesle), yalnızca **kendi** notlarını görür |
 
+### Derslere öğretmen atama
+
+Sınıf öğretmeni **Öğretmen davet et → Dersler ve öğretmenleri** bölümünde sınıfın derslerini çiplerle ekler (veya özel ders adı yazar) ve her dersin yanındaki listeden öğretmen seçer; seçim anında kaydedilir. O branştaki öğretmenler listede önce önerilir.
+
+- Derse atanan öğretmen sınıfa otomatik erişim kazanır; son dersinden çıkarılan öğretmenin erişimi kalkar (DB tetikleyicisi).
+- Davet linkiyle gelen öğretmenin branşı, sınıfın **öğretmensiz** bir dersiyle eşleşiyorsa o derse otomatik atanır.
+- Öğretmenin panelindeki sınıf kartında verdiği ders(ler) görünür.
+
 ### Sınıf davet linki (şifresiz branş öğretmeni)
 
 Sınıf öğretmeni **Öğretmen davet et** ekranından sınıfa özel linki kopyalar / WhatsApp ile paylaşır. Linki açan öğretmen:
@@ -64,6 +72,7 @@ Yetkiler arayüzde değil **veritabanında (RLS)** uygulanır; bkz. `0001_init.s
 ```
 supabase/migrations/0001_init.sql   Şema, trigger, RLS, storage bucket
 supabase/migrations/0002_class_join_links.sql  Sınıf davet linki (join_token, link yenileme)
+supabase/migrations/0003_class_subjects.sql     Sınıf dersleri + derse öğretmen atama (erişim tetikleyicisi)
 scripts/seed.mjs                    Demo kullanıcı / sınıf / öğrenci / not
 src/
   proxy.ts                          (Next 16'da middleware → proxy) oturum yenileme + /login yönlendirmesi

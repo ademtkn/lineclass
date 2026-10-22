@@ -87,11 +87,21 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
     .filter((t): t is NonNullable<typeof t> => !!t && t.role === "branch_teacher")
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"))
     .map(({ id, full_name, branch }) => ({ id, full_name, branch }));
+  const { data: subjects } = await admin
+    .from("class_subjects")
+    .select("subject, teacher_id, teacher:profiles!class_subjects_teacher_id_fkey(full_name)")
+    .eq("class_id", cls.id);
+  const classSubjects = (subjects ?? []).map((x) => ({
+    subject: x.subject,
+    teacherId: x.teacher_id,
+    teacherName: (x.teacher as unknown as { full_name: string } | null)?.full_name ?? null,
+  }));
 
   return (
     <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/join/${token}`}>
       <TeacherPicker
         teachers={teachers}
+        classSubjects={classSubjects}
         joinExisting={joinAsExisting.bind(null, token)}
         joinNew={joinAsNew.bind(null, token)}
       />

@@ -146,12 +146,11 @@ export async function assignTeacher(fd: FormData) {
 export async function unassignTeacher(fd: FormData) {
   await requireRole("super_admin", "class_teacher");
   const classId = str(fd, "class_id");
+  const teacherId = str(fd, "teacher_id");
   const supabase = await createClient();
-  await supabase
-    .from("teacher_class_access")
-    .delete()
-    .eq("class_id", classId)
-    .eq("teacher_id", str(fd, "teacher_id"));
+  // Öğretmen sınıftan çıkarılınca verdiği derslerden de düşer
+  await supabase.from("class_subjects").update({ teacher_id: null }).eq("class_id", classId).eq("teacher_id", teacherId);
+  await supabase.from("teacher_class_access").delete().eq("class_id", classId).eq("teacher_id", teacherId);
   revalidatePath(`/admin/classes/${classId}`);
 }
 
@@ -160,5 +159,38 @@ export async function regenerateJoinToken(classId: string) {
   await requireRole("super_admin", "class_teacher");
   const supabase = await createClient();
   await supabase.rpc("regenerate_join_token", { p_class_id: classId });
+  revalidatePath(`/admin/classes/${classId}`);
+}
+
+// ---------------------------------------------------------------- Dersler (sınıf öğretmeni / admin)
+// Derse öğretmen atamak sınıf erişimini de verir (DB tetikleyicisi senkronlar).
+
+export async function addSubject(fd: FormData) {
+  await requireRole("super_admin", "class_teacher");
+  const classId = str(fd, "class_id");
+  const subject = str(fd, "subject").replace(/\s+/g, " ");
+  if (!subject || subject.length > 60) return;
+  const supabase = await createClient();
+  await supabase.from("class_subjects").upsert({ class_id: classId, subject }, { onConflict: "class_id,subject", ignoreDuplicates: true });
+  revalidatePath(`/admin/classes/${classId}`);
+}
+
+export async function setSubjectTeacher(fd: FormData) {
+  await requireRole("super_admin", "class_teacher");
+  const classId = str(fd, "class_id");
+  const supabase = await createClient();
+  await supabase
+    .from("class_subjects")
+    .update({ teacher_id: str(fd, "teacher_id") || null })
+    .eq("id", str(fd, "subject_id"))
+    .eq("class_id", classId);
+  revalidatePath(`/admin/classes/${classId}`);
+}
+
+export async function deleteSubject(fd: FormData) {
+  await requireRole("super_admin", "class_teacher");
+  const classId = str(fd, "class_id");
+  const supabase = await createClient();
+  await supabase.from("class_subjects").delete().eq("id", str(fd, "subject_id")).eq("class_id", classId);
   revalidatePath(`/admin/classes/${classId}`);
 }
