@@ -8,6 +8,15 @@ import type { Role } from "@/lib/types";
 export type FormState = { error?: string; ok?: string };
 
 const ROLES: Role[] = ["super_admin", "class_teacher", "branch_teacher"];
+// Uzantı istemcinin dosya adından değil türden belirlenir (bucket da aynı listeyi zorlar)
+const PHOTO_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+  "image/heif": "heif",
+  "image/gif": "gif",
+};
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 // ---------------------------------------------------------------- Kullanıcılar (super admin)
@@ -102,9 +111,9 @@ export async function addStudent(_prev: FormState, fd: FormData): Promise<FormSt
   let photoUrl: string | null = null;
 
   if (photo instanceof File && photo.size > 0) {
-    if (!photo.type.startsWith("image/")) return { error: "Fotoğraf bir görsel dosyası olmalı." };
+    const ext = PHOTO_TYPES[photo.type];
+    if (!ext) return { error: "Fotoğraf JPG, PNG, WEBP, HEIC veya GIF olmalı." };
     if (photo.size > 5 * 1024 * 1024) return { error: "Fotoğraf en fazla 5 MB olabilir." };
-    const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${classId}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("student-photos")

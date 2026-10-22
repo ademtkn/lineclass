@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
 import { translateText } from "@/lib/translate";
 import { LANGS, type Lang } from "@/lib/types";
 
@@ -21,6 +22,10 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Oturum gerekli" }, { status: 401 });
+  // Maliyet koruması: kullanıcı başına dakikada 20 çeviri
+  if (!rateLimit(`translate:${user.id}`, 20, 60_000)) {
+    return NextResponse.json({ error: "Çok fazla çeviri isteği. Bir dakika sonra tekrar deneyin." }, { status: 429 });
+  }
 
   const { data: cached } = await supabase
     .from("note_translations")
@@ -37,7 +42,8 @@ export async function POST(request: Request) {
     const { text, provider } = await translateText(note.note_text, lang);
     // Demo çevirileri önbelleğe yazma; gerçek anahtar eklenince yeniden çevrilsin.
     if (provider !== "mock") {
-      await supabase.from("note_translations").insert({ note_id: noteId, lang, text });
+      // Not yukarıda RLS ile okunabildiği için yetki doğrulandı; önbelleğe sunucu yazar
+      await createAdminClient().from("note_translations").insert({ note_id: noteId, lang, text });
     }
     return NextResponse.json({ text, cached: false });
   } catch (e) {

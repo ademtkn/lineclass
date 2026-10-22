@@ -9,10 +9,15 @@ import { findClassByToken } from "@/lib/join";
 
 export type JoinState = { error?: string };
 
-/** Şifre sormadan oturum açar: sunucuda tek kullanımlık giriş anahtarı üretip hemen doğrular. */
-async function signInWithoutPassword(email: string) {
+/**
+ * Şifre sormadan oturum açar: sunucuda tek kullanımlık giriş anahtarı üretip hemen doğrular.
+ * E-posta, değiştirilebilir profil tablosundan değil doğrudan Auth kaydından alınır.
+ */
+async function signInWithoutPassword(userId: string) {
   const admin = createAdminClient();
-  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  const { data: authUser, error: userError } = await admin.auth.admin.getUserById(userId);
+  if (userError || !authUser.user.email) throw userError ?? new Error("kullanıcı bulunamadı");
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: authUser.user.email });
   if (error) throw error;
 
   const supabase = await createClient();
@@ -49,7 +54,7 @@ export async function joinAsExisting(token: string, fd: FormData) {
 
   const admin = createAdminClient();
   const [{ data: teacher }, { data: access }] = await Promise.all([
-    admin.from("profiles").select("email, role").eq("id", teacherId).maybeSingle(),
+    admin.from("profiles").select("role, via_link").eq("id", teacherId).maybeSingle(),
     admin
       .from("teacher_class_access")
       .select("teacher_id")
@@ -57,11 +62,11 @@ export async function joinAsExisting(token: string, fd: FormData) {
       .eq("class_id", cls.id)
       .maybeSingle(),
   ]);
-  // Link yalnızca bu sınıfa atanmış BRANŞ öğretmenleri için şifresiz giriş sağlar;
-  // sınıf öğretmeni ve admin hesapları her zaman şifreyle girer.
-  if (!teacher || teacher.role !== "branch_teacher" || !access) redirect(`/${token}`);
+  // Link yalnızca bu sınıfa erişimi olan ve LİNKLE oluşturulmuş branş öğretmeni hesaplarını açar.
+  // Şifreyle oluşturulan hesaplar (admin, sınıf öğretmeni, admin'in açtığı öğretmenler) linkle açılamaz.
+  if (!teacher || teacher.role !== "branch_teacher" || !teacher.via_link || !access) redirect(`/${token}`);
 
-  await signInWithoutPassword(teacher.email);
+  await signInWithoutPassword(teacherId);
   redirect(`/teacher/classes/${cls.id}`);
 }
 
@@ -84,23 +89,23 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
     if (!custom) return { error: "Lütfen branşınızı seçin." };
   }
 
-  // Aynı ad + branşla daha önce (başka bir sınıfın linkinden) katılmışsa aynı hesabı kullan
+  // Aynı ad + branşla daha önce (başka bir sınıfın linkinden) katılmışsa aynı hesabı kullan.
+  // Yalnızca linkle oluşturulmuş hesaplar eşleşir: şifreli bir hesabın adını yazmak onu açmaz.
   const { data: existing } = await admin
     .from("profiles")
-    .select("id, email")
+    .select("id")
     .eq("role", "branch_teacher")
+    .eq("via_link", true)
     .eq("branch", branch)
     .ilike("full_name", fullName.replace(/[\\%_]/g, "\\$&"))
     .limit(1)
     .maybeSingle();
 
   let teacherId = existing?.id;
-  let email = existing?.email;
 
   if (!teacherId) {
-    email = `link-${randomUUID()}@ogretmen.lineclass.local`;
     const { data, error } = await admin.auth.admin.createUser({
-      email,
+      email: `link-${randomUUID()}@ogretmen.lineclass.local`,
       // Kimsenin bilmediği rastgele şifre: hesap sadece sınıf linkiyle açılır
       password: randomBytes(32).toString("base64url"),
       email_confirm: true,
@@ -118,7 +123,7 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
     .eq("class_id", cls.id)
     .eq("subject", branch)
     .is("teacher_id", null);
-  await signInWithoutPassword(email!);
+  await signInWithoutPassword(teacherId);
   redirect(`/teacher/classes/${cls.id}`);
 }
 

@@ -6,7 +6,7 @@ import { addSubject, deleteSubject, setSubjectTeacher } from "@/app/admin/action
 import { BRANCHES } from "@/lib/types";
 
 type Subject = { id: string; subject: string; teacher_id: string | null };
-type Teacher = { id: string; full_name: string; email: string; branch: string | null };
+type Teacher = { id: string; full_name: string; branch: string | null };
 
 type Props = {
   classId: string;
@@ -89,7 +89,7 @@ function SubjectRow({ classId, subject, teachers }: { classId: string; subject: 
   // Dersin branşındaki öğretmenler önce önerilir
   const matching = teachers.filter((t) => t.branch === subject.subject);
   const others = teachers.filter((t) => t.branch !== subject.subject);
-  const label = (t: Teacher) => `${t.full_name || t.email}${t.branch ? ` (${t.branch})` : ""}`;
+  const label = (t: Teacher) => `${t.full_name || "İsimsiz"}${t.branch ? ` (${t.branch})` : ""}`;
 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">

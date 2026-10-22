@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ActionForm } from "@/components/ActionForm";
 import { AppHeader } from "@/components/AppHeader";
 import { requireRole } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { BRANCHES, ROLE_LABELS, type Profile, type Role } from "@/lib/types";
 import { createClass, createUser, deleteClass, setClassTeacher, updateUserRole } from "../actions";
 
@@ -17,7 +17,8 @@ export default async function ManagePage(props: PageProps<"/admin/manage">) {
   const supabase = await createClient();
 
   const [{ data: users }, { data: classes }] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email, role, branch, via_link").order("full_name"),
+    // E-postalar yalnızca super admin'e, sunucuda service role ile gösterilir (API'de kapalı)
+    createAdminClient().from("profiles").select("id, full_name, email, role, branch, via_link").order("full_name"),
     supabase.from("classes").select("id, name, class_teacher_id").order("name"),
   ]);
   const people = (users ?? []) as (Profile & { via_link: boolean })[];

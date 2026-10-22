@@ -10,7 +10,8 @@
     "db:start": "supabase start -x edge-runtime,logflare,vector,imgproxy",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && npm run seed",
-    "seed": "node --env-file=.env.local scripts/seed.mjs"
+    "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "test:security": "node --env-file=.env.local scripts/security-test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

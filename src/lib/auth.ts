@@ -14,10 +14,11 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, branch")
+    .select("id, full_name, role, branch")
     .eq("id", user.id)
     .single();
-  return data;
+  // E-posta sütunu API'ye kapalı (bkz. 0005); kendi e-postası oturumdan gelir
+  return data ? { ...data, email: user.email ?? "" } : null;
 });
 
 /** Profil yoksa /login'e, rol uymuyorsa ana sayfaya yönlendirir. */

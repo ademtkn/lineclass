@@ -31,14 +31,14 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
     supabase.from("teacher_class_access").select("teacher_id").eq("class_id", classId),
     supabase
       .from("profiles")
-      .select("id, full_name, email, role, branch, via_link")
+      .select("id, full_name, role, branch, via_link")
       .in("role", ["branch_teacher", "class_teacher"])
       .order("full_name"),
     supabase.from("class_subjects").select("id, subject, teacher_id").eq("class_id", classId).order("subject"),
   ]);
 
   const assignedIds = new Set(access?.map((a) => a.teacher_id));
-  const allTeachers = (teachers ?? []) as (Profile & { via_link: boolean })[];
+  const allTeachers = (teachers ?? []) as (Omit<Profile, "email"> & { via_link: boolean })[];
 
   // Davet linki, uygulamanın açıldığı adresle üretilir (yerelde localhost, yayında alan adı)
   const h = await headers();
@@ -63,7 +63,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
           <SubjectAssignments
             classId={classId}
             subjects={subjects ?? []}
-            teachers={allTeachers.map(({ id, full_name, email, branch }) => ({ id, full_name, email, branch }))}
+            teachers={allTeachers.map(({ id, full_name, branch }) => ({ id, full_name, branch }))}
           />
 
           <h2 className="pt-2 text-lg font-bold">Sınıfa erişimi olan öğretmenler</h2>
@@ -76,7 +76,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
               <option value="" disabled>Kayıtlı öğretmen ata…</option>
               {available.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.full_name || t.email} {t.branch ? `(${t.branch})` : ""}
+                  {t.full_name || "İsimsiz"} {t.branch ? `(${t.branch})` : ""}
                 </option>
               ))}
             </select>
@@ -88,7 +88,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
             {assigned.map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{t.full_name || t.email}</p>
+                  <p className="truncate font-medium">{t.full_name || "İsimsiz"}</p>
                   <p className="text-xs text-slate-500">
                     {subjectsOf(t.id).length ? `Ders: ${subjectsOf(t.id).join(", ")}` : (t.branch ?? "Branş seçilmemiş") + " · ders atanmamış"}
                     {t.via_link && " · link ile katıldı"}

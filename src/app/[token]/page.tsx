@@ -83,11 +83,12 @@ export default async function JoinPage(props: PageProps<"/[token]">) {
   const admin = createAdminClient();
   const { data: access } = await admin
     .from("teacher_class_access")
-    .select("teacher:profiles(id, full_name, branch, role)")
+    .select("teacher:profiles(id, full_name, branch, role, via_link)")
     .eq("class_id", cls.id);
   const teachers = (access ?? [])
-    .map((a) => a.teacher as unknown as Pick<Profile, "id" | "full_name" | "branch" | "role"> | null)
-    .filter((t): t is NonNullable<typeof t> => !!t && t.role === "branch_teacher")
+    .map((a) => a.teacher as unknown as (Pick<Profile, "id" | "full_name" | "branch" | "role"> & { via_link: boolean }) | null)
+    // Yalnızca linkle katılmış hesaplar listelenir; şifreli hesaplar /login'den girer
+    .filter((t): t is NonNullable<typeof t> => !!t && t.role === "branch_teacher" && t.via_link)
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"))
     .map(({ id, full_name, branch }) => ({ id, full_name, branch }));
   const { data: subjects } = await admin
