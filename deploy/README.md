@@ -1,4 +1,26 @@
-# LineClass — sunucu kurulumu ve bakım
+# LineClass — sunucu kurulumu
+
+İki kurulum seçeneği vardır:
+
+| | **A) Sadece uygulama** (şu an kullanılan) | **B) Her şey kendi sunucumuzda** |
+|---|---|---|
+| Sunucu | 512 MB ($4/ay) | ≥ 4 GB ($24/ay) |
+| Veritabanı | supabase.com (ücretsiz plan) | Self-hosted Supabase |
+| Dosyalar | `deploy/app-only/`, `scripts/deploy-app.sh` | `deploy/bootstrap.sh` ve aşağısı |
+
+## A) Sadece uygulama (512 MB sunucu + supabase.com)
+
+1. supabase.com'da proje (Frankfurt) → SQL Editor'de `supabase/migrations/0001…0007` sırayla → Authentication → Sign In / Providers: **"Allow new users to sign up" kapalı**; URL Configuration → Site URL `https://lineclass.com.kg`.
+2. `deploy/app-only/.env.production.example` → `deploy/app-only/.env.production` (Supabase anahtarları).
+3. Sunucuyu bir kez hazırla: `ssh -i ~/.ssh/lineclass_do root@IP 'bash -s' < deploy/app-only/setup-server.sh`
+4. Yayınla / güncelle (bu bilgisayardan): `bash scripts/deploy-app.sh root@IP`
+5. DNS: `lineclass.com.kg` ve `www.lineclass.com.kg` için A kaydı → sunucu IP. HTTPS sertifikası otomatik gelir.
+
+Yedekler: supabase.com ücretsiz planda otomatik yedek yoktur; Dashboard → Database → Backups bölümünden veya `pg_dump` ile ara sıra alın. Ücretsiz proje 7 gün hiç kullanılmazsa duraklatılır; panelden "Restore" ile açılır.
+
+---
+
+## B) Her şey kendi sunucumuzda (self-hosted Supabase)
 
 Tek sunucu (DigitalOcean droplet, Ubuntu 24.04) üzerinde:
 

@@ -1,0 +1,30 @@
+# 512 MB'lık sunucu için: yalnızca LineClass + Caddy (otomatik HTTPS).
+# Veritabanı supabase.com'da. İmaj Mac'te derlenip scripts/deploy-app.sh ile gönderilir.
+name: lineclass
+
+services:
+  app:
+    image: lineclass-app:latest
+    restart: unless-stopped
+    env_file: .env
+    mem_limit: 320m
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 96m
+    depends_on: [app]
+
+volumes:
+  caddy_data:
+  caddy_config:

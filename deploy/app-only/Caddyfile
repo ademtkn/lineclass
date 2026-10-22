@@ -1,0 +1,10 @@
+# Let's Encrypt sertifikaları otomatik alınır ve yenilenir.
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+	header -server
+}
+
+www.{$APP_DOMAIN} {
+	redir https://{$APP_DOMAIN}{uri} permanent
+}
