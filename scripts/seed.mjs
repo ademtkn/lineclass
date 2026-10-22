@@ -8,6 +8,12 @@ if (!url || !key) {
   console.error("NEXT_PUBLIC_SUPABASE_URL ve SUPABASE_SERVICE_ROLE_KEY gerekli (.env.local).");
   process.exit(1);
 }
+// Demo şifresi bu depoda herkese açık: canlı veritabanında asla demo hesapları oluşturma
+const host = new URL(url).hostname;
+if (!["127.0.0.1", "localhost"].includes(host)) {
+  console.error(`Seed yalnızca yerel Supabase için çalışır (hedef: ${host}). İptal edildi.`);
+  process.exit(1);
+}
 const db = createClient(url, key, { auth: { persistSession: false } });
 
 const PASSWORD = "LineClass123!";
