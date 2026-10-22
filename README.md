@@ -4,7 +4,22 @@
 
 **Stack:** Next.js 16 (App Router, Server Actions) · Tailwind CSS v4 · Supabase (Auth, Postgres + RLS, Storage) · OpenAI / Gemini (çeviri, anahtar yoksa mock)
 
-## Kurulum
+## Hızlı başlangıç (yerel Supabase — hesap gerekmez)
+
+Docker Desktop açıkken:
+
+```bash
+npm install
+npm run db:start      # Supabase'i Docker'da başlatır, şemayı otomatik uygular (portlar 553xx)
+npx supabase status   # API URL + anon / service_role anahtarlarını gösterir → .env.local'e yazın
+npm run seed          # demo verisi
+npm run dev
+```
+
+Yerel Supabase Studio (veritabanını tablo olarak görmek için): http://127.0.0.1:55323
+Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
+
+## Kurulum (supabase.com bulut projesi)
 
 1. [supabase.com](https://supabase.com)'da bir proje açın.
 2. **SQL Editor** → `supabase/migrations/0001_init.sql` içeriğini yapıştırıp çalıştırın.

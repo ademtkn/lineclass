@@ -37,7 +37,7 @@ export function TranslateBox({ noteId }: { noteId: string }) {
   return (
     <div className="mt-3 border-t border-slate-100 pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-slate-500">✨ Yapay Zeka ile Çevir</span>
+        <span className="basis-full text-xs font-medium text-slate-500 sm:basis-auto">✨ Yapay Zeka ile Çevir</span>
         {LANGS.map((l) => (
           <button
             key={l.code}

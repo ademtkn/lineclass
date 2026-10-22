@@ -67,8 +67,8 @@ export default async function ManagePage(props: PageProps<"/admin/manage">) {
               <h2 className="mb-3 text-lg font-bold">Kullanıcılar ({people.length})</h2>
               <ul className="card divide-y divide-slate-100 p-0">
                 {people.map((u) => (
-                  <li key={u.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                    <div className="min-w-0 flex-1">
+                  <li key={u.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                    <div className="min-w-0 flex-1 basis-full sm:basis-auto">
                       <p className="truncate font-medium">{u.full_name || "—"}</p>
                       <p className="truncate text-xs text-slate-500">
                         {u.email}

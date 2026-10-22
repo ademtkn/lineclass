@@ -77,7 +77,7 @@ export default async function AdminDashboard(props: PageProps<"/admin">) {
                 <p className="text-sm text-slate-500">
                   {students.length} öğrenci · notları görmek için dokunun
                 </p>
-                <Link href={`/admin/classes/${selected.id}`} className="btn-ghost min-h-10 px-4 text-sm">
+                <Link href={`/admin/classes/${selected.id}`} className="btn-ghost min-h-10 shrink-0 whitespace-nowrap px-4 text-sm">
                   Sınıfı yönet
                 </Link>
               </div>
