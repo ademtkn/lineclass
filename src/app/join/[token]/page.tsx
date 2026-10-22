@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { ROLE_LABELS, type Profile } from "@/lib/types";
@@ -9,6 +10,7 @@ export const metadata = { title: "Sınıfa katıl · LineClass" };
 
 export default async function JoinPage(props: PageProps<"/join/[token]">) {
   const { token } = await props.params;
+  const { adim } = await props.searchParams;
   const cls = await findClassByToken(token);
 
   if (!cls) {
@@ -25,12 +27,35 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
     );
   }
 
+  // 1. adım: sınıf adı + sınıf öğretmeni kartı. Dokununca öğretmen seçimine geçilir.
+  if (adim !== "ogretmen") {
+    return (
+      <Shell>
+        <p className="mb-3 text-center text-slate-600">Bu sınıfa not girişi için davet edildiniz.</p>
+        <Link
+          href={`/join/${token}?adim=ogretmen`}
+          className="card block bg-gradient-to-br from-brand-500 to-brand-700 p-6 text-white ring-0 shadow-lg shadow-brand-600/20 transition active:scale-[0.98]"
+        >
+          <span className="block text-sm text-white/80">Sınıf</span>
+          <span className="block text-5xl font-bold tracking-tight">{cls.name}</span>
+          <span className="mt-5 block border-t border-white/20 pt-4">
+            <span className="block text-sm text-white/80">Sınıf öğretmeni</span>
+            <span className="block text-lg font-semibold">{cls.classTeacherName ?? "Atanmamış"}</span>
+          </span>
+          <span className="mt-5 flex min-h-12 items-center justify-center rounded-2xl bg-white font-semibold text-brand-700">
+            Devam et →
+          </span>
+        </Link>
+      </Shell>
+    );
+  }
+
   const profile = await getProfile();
 
   // Zaten giriş yapılmış (aynı telefon): tek dokunuşla devam
   if (profile) {
     return (
-      <Shell className={cls.name}>
+      <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/join/${token}`}>
         <div className="card space-y-4 p-6 text-center">
           <p className="text-slate-600">Bu cihazda şu kişi olarak giriş yapılmış:</p>
           <div>
@@ -63,7 +88,7 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
 
   return (
-    <Shell className={cls.name}>
+    <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/join/${token}`}>
       {teachers.length > 0 && (
         <section className="mb-6">
           <h2 className="mb-2 font-semibold text-slate-700">Daha önce girdiyseniz adınıza dokunun</h2>
@@ -87,7 +112,7 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
 
       <section>
         <h2 className="mb-2 font-semibold text-slate-700">
-          {teachers.length ? "Listede yoksanız" : "Adınızı ve branşınızı seçin"}
+          {teachers.length ? "Listede yoksanız: adınızı ve branşınızı seçin" : "Adınızı ve branşınızı seçin"}
         </h2>
         <JoinNewForm action={joinAsNew.bind(null, token)} />
       </section>
@@ -95,10 +120,25 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
   );
 }
 
-function Shell({ children, className }: { children: React.ReactNode; className?: string }) {
+function Shell({
+  children,
+  className,
+  subtitle,
+  backHref,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  subtitle?: string | null;
+  backHref?: string;
+}) {
   return (
     <main className="min-h-dvh px-4 py-8">
       <div className="mx-auto max-w-md">
+        {backHref && (
+          <Link href={backHref} className="mb-2 inline-block text-sm text-slate-500">
+            ← Geri
+          </Link>
+        )}
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 grid size-14 place-items-center rounded-3xl bg-brand-600 text-xl font-bold text-white">
             LC
@@ -107,6 +147,7 @@ function Shell({ children, className }: { children: React.ReactNode; className?:
             <>
               <p className="text-sm text-slate-500">LineClass · Sınıf daveti</p>
               <h1 className="text-3xl font-bold">{className}</h1>
+              {subtitle && <p className="text-sm text-slate-500">Sınıf öğretmeni: {subtitle}</p>}
             </>
           ) : (
             <h1 className="text-2xl font-bold">LineClass</h1>

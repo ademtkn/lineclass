@@ -111,5 +111,5 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
 export async function switchUser(token: string) {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect(`/join/${token}`);
+  redirect(`/join/${token}?adim=ogretmen`);
 }

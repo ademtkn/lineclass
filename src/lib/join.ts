@@ -5,6 +5,13 @@ import { createAdminClient } from "@/lib/supabase/server";
 export async function findClassByToken(token: string) {
   if (!/^[a-f0-9]{32}$/.test(token)) return null;
   const admin = createAdminClient();
-  const { data } = await admin.from("classes").select("id, name").eq("join_token", token).maybeSingle();
-  return data;
+  const { data, error } = await admin
+    .from("classes")
+    .select("id, name, class_teacher:profiles!classes_class_teacher_id_fkey(full_name)")
+    .eq("join_token", token)
+    .maybeSingle();
+  if (error) console.error("findClassByToken failed", error);
+  if (!data) return null;
+  const teacher = data.class_teacher as unknown as { full_name: string } | null;
+  return { id: data.id, name: data.name, classTeacherName: teacher?.full_name || null };
 }
