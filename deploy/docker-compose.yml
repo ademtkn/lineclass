@@ -1,0 +1,43 @@
+# LineClass uygulaması + Caddy (otomatik HTTPS).
+# Supabase ayrı bir compose projesi olarak /opt/lineclass/supabase'te çalışır;
+# bu dosya onun ağına (supabase_default) katılır.
+name: lineclass
+
+services:
+  app:
+    build:
+      context: ..
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    image: lineclass-app
+    restart: unless-stopped
+    env_file: .env
+    networks: [supabase]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    networks: [supabase]
+
+networks:
+  supabase:
+    name: supabase_default
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:

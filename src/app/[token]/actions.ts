@@ -109,7 +109,8 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
       // Kimsenin bilmediği rastgele şifre: hesap sadece sınıf linkiyle açılır
       password: randomBytes(32).toString("base64url"),
       email_confirm: true,
-      user_metadata: { full_name: fullName, branch, role: "branch_teacher", via_link: true },
+      app_metadata: { role: "branch_teacher", via_link: true },
+      user_metadata: { full_name: fullName, branch },
     });
     if (error) return { error: "Hesap oluşturulamadı: " + error.message };
     teacherId = data.user.id;

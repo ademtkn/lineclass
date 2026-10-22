@@ -58,6 +58,32 @@ await test("Girişsiz: /teacher ve /admin girişe yönlenir", async () => {
 await test("Girişsiz: geçersiz davet kodu sınıf bilgisi sızdırmaz", async () =>
   (await (await fetch(`${APP}/5a-zzzzzzz`)).text()).includes("Link geçersiz"));
 
+await test("Girişsiz: herkese açık kayıt ile admin olunamaz (signup + rol enjeksiyonu)", async () => {
+  const email = `saldirgan-${Date.now()}@example.com`;
+  const { data, error } = await guest.auth.signUp({
+    email,
+    password: "Saldirgan-12345",
+    options: { data: { role: "super_admin", via_link: true } },
+  });
+  if (error || !data.user) return true; // kayıt kapalı: en iyi durum
+  const { data: p } = await svc.from("profiles").select("role, via_link").eq("id", data.user.id).single();
+  await svc.auth.admin.deleteUser(data.user.id);
+  return p?.role === "branch_teacher" && p?.via_link === false;
+});
+
+await test("Hesap açma: admin'in verdiği rol (app_metadata) profile doğru yansır", async () => {
+  const { data, error } = await svc.auth.admin.createUser({
+    email: `rol-testi-${Date.now()}@example.com`,
+    password: "Rol-Testi-12345",
+    email_confirm: true,
+    app_metadata: { role: "class_teacher" },
+  });
+  if (error) throw error;
+  const { data: p } = await svc.from("profiles").select("role").eq("id", data.user.id).single();
+  await svc.auth.admin.deleteUser(data.user.id);
+  return p?.role === "class_teacher";
+});
+
 // ---------------------------------------------------------------- branş öğretmeni (Irina)
 await test("Branş: başka sınıfın (6-B) öğrencilerini göremez", async () => denied(await irina.from("students").select("id").eq("class_id", c6b)));
 await test("Branş: başka öğretmenin notunu göremez", async () => denied(await irina.from("notes").select("id").eq("id", mehmetNote)));

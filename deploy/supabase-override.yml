@@ -1,0 +1,9 @@
+# Supabase compose'una eklenir (COMPOSE_FILE). Dışarıya hiçbir port açmaz:
+#  - API geçidi sadece sunucunun kendisinden (127.0.0.1) erişilebilir → Studio için SSH tüneli
+#  - Postgres havuzu (supavisor) dışarı kapalı
+# Dış trafik yalnızca LineClass'ın Caddy'si üzerinden (80/443) gelir.
+services:
+  api-gw:
+    ports: !reset ["127.0.0.1:8000:8000"]
+  supavisor:
+    ports: !reset []

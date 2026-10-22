@@ -29,7 +29,8 @@ async function ensureUser(u) {
     email: u.email,
     password: PASSWORD,
     email_confirm: true,
-    user_metadata: { full_name: u.full_name, role: u.role, branch: u.branch },
+    app_metadata: { role: u.role },
+    user_metadata: { full_name: u.full_name, branch: u.branch },
   });
   if (!error) return data.user.id;
   // Zaten varsa id'sini profilden bul

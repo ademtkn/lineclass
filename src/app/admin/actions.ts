@@ -39,7 +39,9 @@ export async function createUser(_prev: FormState, fd: FormData): Promise<FormSt
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: fullName, role, branch },
+    // Rol app_metadata'da: yalnızca sunucu yazabilir (bkz. 0006)
+    app_metadata: { role },
+    user_metadata: { full_name: fullName, branch },
   });
   if (error) return { error: error.message };
 

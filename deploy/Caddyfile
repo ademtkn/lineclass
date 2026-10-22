@@ -1,0 +1,24 @@
+# Let's Encrypt sertifikaları otomatik alınır ve yenilenir.
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+	header -server
+}
+
+www.{$APP_DOMAIN} {
+	redir https://{$APP_DOMAIN}{uri} permanent
+}
+
+# Supabase API: yalnızca uygulamanın kullandığı yollar dışarı açılır.
+# Studio (yönetim paneli) internete AÇIK DEĞİLDİR; SSH tüneliyle erişilir (deploy/README.md).
+{$API_DOMAIN} {
+	@api path /auth/v1/* /rest/v1/* /storage/v1/* /realtime/v1/*
+	handle @api {
+		reverse_proxy supabase-envoy:8000
+	}
+	handle {
+		respond 404
+	}
+	header -server
+}
