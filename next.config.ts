@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    // Öğrenci fotoğrafı yüklemesi (en fazla 5 MB) Server Action ile yapılıyor
+    serverActions: { bodySizeLimit: "6mb" },
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
