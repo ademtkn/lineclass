@@ -39,6 +39,15 @@ Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
 
 Seed sonrası giriş: `admin@lineclass.test`, `aisel@lineclass.test` (sınıf öğretmeni), `mehmet@lineclass.test` (branş), şifre `LineClass123!`.
 
+## Yayın (lineclass.com.kg)
+
+1. **Supabase (bulut):** supabase.com'da Frankfurt bölgesinde proje açın → SQL Editor'de `supabase/migrations/0001…0005` dosyalarını sırayla çalıştırın → Authentication → URL Configuration → Site URL: `https://lineclass.com.kg`.
+   İlk admin: Authentication → Users → Add user (e-posta + güçlü şifre), ardından SQL Editor'de
+   `update profiles set role = 'super_admin', full_name = 'Ad Soyad' where email = '...';`
+   (`scripts/seed.mjs` canlı veritabanında bilerek çalışmaz.)
+2. **DigitalOcean App Platform:** Apps → Create App → GitHub `ademtkn/lineclass` (main) → `.do/app.yaml` içindeki ortam değişkenlerini Supabase anahtarlarıyla doldurun. Her `git push` otomatik yayınlanır.
+3. **Alan adı:** App → Settings → Domains → `lineclass.com.kg` ekleyin. cctld.kg panelinde alan adının nameserver'larını `ns1.digitalocean.com`, `ns2.digitalocean.com`, `ns3.digitalocean.com` yapın (veya DO'nun gösterdiği CNAME/A kayıtlarını girin). HTTPS sertifikası otomatik gelir.
+
 ## Roller
 
 | Rol | Ana ekran | Yapabildikleri |
