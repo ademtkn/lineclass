@@ -2,12 +2,16 @@
 # Supabase service_role anahtarını ekrana yazdırmadan deploy/app-only/.env.production'a kaydeder.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Terminal yapıştırırken metnin başına/sonuna "bracketed paste" kodları (ESC[200~ / ESC[201~)
+# ekleyebiliyor; bu kodlar anahtarı/şifreyi bozar. Yapıştırma modunu kapat, çıkışta geri aç.
+printf '\e[?2004l'; trap 'printf "\e[?2004h"' EXIT
+strip_paste() { printf '%s' "$1" | LC_ALL=C sed -e 's/\x1b\[20[01]~//g' -e 's/\x1b\[[0-9;]*[~A-Za-z]//g'; }
 ENV_FILE=deploy/app-only/.env.production
 REF=$(grep '^NEXT_PUBLIC_SUPABASE_URL=' "$ENV_FILE" | sed -E 's|.*https://([a-z0-9]+)\.supabase\.co.*|\1|')
 
 echo "Supabase → Project Settings → API Keys → Legacy → service_role → Reveal → Copy"
 read -rsp "service_role anahtarını buraya yapıştırıp Enter'a basın (ekranda görünmez): " KEY; echo
-KEY=$(printf '%s' "$KEY" | tr -d '[:space:]')
+KEY=$(strip_paste "$KEY" | tr -d '[:space:]')
 
 CHECK=$(python3 -c 'import sys,base64,json
 t=sys.argv[1]
