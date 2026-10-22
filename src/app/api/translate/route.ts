@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { translateText } from "@/lib/translate";
 import { LANGS, type Lang } from "@/lib/types";
@@ -10,21 +11,22 @@ import { LANGS, type Lang } from "@/lib/types";
  * Sonuç note_translations tablosunda önbelleğe alınır.
  */
 export async function POST(request: Request) {
+  const { t } = await getT();
   const body = await request.json().catch(() => null);
   const noteId = typeof body?.noteId === "string" ? body.noteId : null;
   const lang = body?.lang as Lang;
   if (!noteId || !LANGS.some((l) => l.code === lang)) {
-    return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
+    return NextResponse.json({ error: t("api.badRequest") }, { status: 400 });
   }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Oturum gerekli" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: t("api.auth") }, { status: 401 });
   // Maliyet koruması: kullanıcı başına dakikada 20 çeviri
   if (!rateLimit(`translate:${user.id}`, 20, 60_000)) {
-    return NextResponse.json({ error: "Çok fazla çeviri isteği. Bir dakika sonra tekrar deneyin." }, { status: 429 });
+    return NextResponse.json({ error: t("api.rateLimit") }, { status: 429 });
   }
 
   const { data: cached } = await supabase
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
   if (cached) return NextResponse.json({ text: cached.text, cached: true });
 
   const { data: note } = await supabase.from("notes").select("note_text").eq("id", noteId).maybeSingle();
-  if (!note) return NextResponse.json({ error: "Not bulunamadı" }, { status: 404 });
+  if (!note) return NextResponse.json({ error: t("api.notFound") }, { status: 404 });
 
   try {
     const { text, provider } = await translateText(note.note_text, lang);
@@ -48,6 +50,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ text, cached: false });
   } catch (e) {
     console.error("translate failed", e);
-    return NextResponse.json({ error: "Çeviri servisine ulaşılamadı" }, { status: 502 });
+    return NextResponse.json({ error: t("api.unavailable") }, { status: 502 });
   }
 }

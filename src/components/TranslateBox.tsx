@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 import { LANGS, type Lang } from "@/lib/types";
 
 /** Notun altındaki "Yapay Zeka ile Çevir (EN / KG / RU / TR)" butonları ve sonuç kutusu. */
 export function TranslateBox({ noteId }: { noteId: string }) {
+  const { t } = useI18n();
   const [active, setActive] = useState<Lang | null>(null);
   const [results, setResults] = useState<Partial<Record<Lang, string>>>({});
   const [loading, setLoading] = useState<Lang | null>(null);
@@ -23,10 +25,10 @@ export function TranslateBox({ noteId }: { noteId: string }) {
         body: JSON.stringify({ noteId, lang }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Çeviri başarısız");
+      if (!res.ok) throw new Error(data.error ?? t("translate.failed"));
       setResults((r) => ({ ...r, [lang]: data.text }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Çeviri başarısız");
+      setError(e instanceof Error ? e.message : t("translate.failed"));
     } finally {
       setLoading(null);
     }
@@ -37,7 +39,7 @@ export function TranslateBox({ noteId }: { noteId: string }) {
   return (
     <div className="mt-3 border-t border-slate-100 pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="basis-full text-xs font-medium text-slate-500 sm:basis-auto">✨ Yapay Zeka ile Çevir</span>
+        <span className="basis-full text-xs font-medium text-slate-500 sm:basis-auto">{t("translate.label")}</span>
         {LANGS.map((l) => (
           <button
             key={l.code}

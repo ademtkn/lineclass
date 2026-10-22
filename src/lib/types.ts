@@ -34,18 +34,14 @@ export type Note = {
   created_at: string;
 };
 
-export const ROLE_LABELS: Record<Role, string> = {
-  super_admin: "Super Admin",
-  class_teacher: "Sınıf Öğretmeni",
-  branch_teacher: "Branş Öğretmeni",
+// Görünen adlar sözlükte (role.* / status.*); burada yalnızca görsel ayrıntılar var.
+export const STATUS_META: Record<NoteStatus, { emoji: string; className: string }> = {
+  positive: { emoji: "👍", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  neutral: { emoji: "📝", className: "bg-slate-50 text-slate-700 ring-slate-200" },
+  concern: { emoji: "⚠️", className: "bg-amber-50 text-amber-800 ring-amber-200" },
 };
 
-export const STATUS_META: Record<NoteStatus, { label: string; emoji: string; className: string }> = {
-  positive: { label: "Olumlu", emoji: "👍", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  neutral: { label: "Gözlem", emoji: "📝", className: "bg-slate-50 text-slate-700 ring-slate-200" },
-  concern: { label: "Dikkat", emoji: "⚠️", className: "bg-amber-50 text-amber-800 ring-amber-200" },
-};
-
+/** Notların yapay zekâ ile çevrileceği diller (çeviri isteminde İngilizce adları kullanılır) */
 export const LANGS: { code: Lang; label: string; name: string }[] = [
   { code: "en", label: "EN", name: "English" },
   { code: "ky", label: "KG", name: "Kyrgyz" },
@@ -53,19 +49,4 @@ export const LANGS: { code: Lang; label: string; name: string }[] = [
   { code: "tr", label: "TR", name: "Turkish" },
 ];
 
-export const BRANCHES = [
-  "Matematik",
-  "Fizik",
-  "Kimya",
-  "Biyoloji",
-  "Türkçe",
-  "İngilizce",
-  "Rusça",
-  "Kırgızca",
-  "Tarih",
-  "Coğrafya",
-  "Bilişim",
-  "Beden Eğitimi",
-  "Müzik",
-  "Görsel Sanatlar",
-];
+export { BRANCHES } from "@/lib/i18n/branches";

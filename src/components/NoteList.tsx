@@ -1,6 +1,8 @@
 import { deleteNote } from "@/app/teacher/actions";
 import { TranslateBox } from "@/components/TranslateBox";
 import { formatDateTime } from "@/lib/format";
+import { branchLabel } from "@/lib/i18n/branches";
+import { getT } from "@/lib/i18n/server";
 import { STATUS_META, type Note } from "@/lib/types";
 
 export type NoteWithTeacher = Note & {
@@ -15,9 +17,10 @@ type Props = {
 };
 
 /** Kronolojik not listesi: kim, ne zaman, hangi notu yazmış + çeviri. */
-export function NoteList({ notes, currentUserId, canDeleteAll = false, emptyText = "Henüz not yok." }: Props) {
+export async function NoteList({ notes, currentUserId, canDeleteAll = false, emptyText }: Props) {
+  const { t, locale } = await getT();
   if (notes.length === 0) {
-    return <p className="card text-center text-slate-500">{emptyText}</p>;
+    return <p className="card text-center text-slate-500">{emptyText ?? t("notes.empty")}</p>;
   }
 
   return (
@@ -29,14 +32,14 @@ export function NoteList({ notes, currentUserId, canDeleteAll = false, emptyText
           <li key={n.id} className="card">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate font-semibold">{n.teacher?.full_name || "Öğretmen"}</p>
+                <p className="truncate font-semibold">{n.teacher?.full_name || t("notes.teacherFallback")}</p>
                 <p className="text-xs text-slate-500">
-                  {n.teacher?.branch && <>{n.teacher.branch} · </>}
-                  <time dateTime={n.created_at}>{formatDateTime(n.created_at)}</time>
+                  {n.teacher?.branch && <>{branchLabel(n.teacher.branch, locale)} · </>}
+                  <time dateTime={n.created_at}>{formatDateTime(n.created_at, locale)}</time>
                 </p>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${meta.className}`}>
-                {meta.emoji} {meta.label}
+                {meta.emoji} {t(`status.${n.status}`)}
               </span>
             </div>
 
@@ -48,7 +51,7 @@ export function NoteList({ notes, currentUserId, canDeleteAll = false, emptyText
               <form action={deleteNote} className="mt-2 text-right">
                 <input type="hidden" name="note_id" value={n.id} />
                 <input type="hidden" name="student_id" value={n.student_id} />
-                <button className="text-xs text-slate-400 hover:text-red-600">Sil</button>
+                <button className="min-h-9 px-2 text-xs text-slate-400 hover:text-red-600">{t("common.delete")}</button>
               </form>
             )}
           </li>

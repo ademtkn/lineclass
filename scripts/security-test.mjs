@@ -129,6 +129,24 @@ await test("Sınıf öğr.: başka sınıfa öğretmen atayamaz", async () =>
   !!(await aisel.from("teacher_class_access").insert({ class_id: c6b, teacher_id: aisel.uid })).error);
 await test("Sınıf öğr.: sınıf bilgilerini/sınıf öğretmenini değiştiremez", async () =>
   denied(await aisel.from("classes").update({ class_teacher_id: aisel.uid }).eq("id", c6b).select()));
+await test("Sınıf öğr.: kendi sınıfını açabilir, adını değiştirip silebilir", async () => {
+  const name = `T-${Date.now() % 100000}`;
+  const ins = await aisel.from("classes").insert({ name, class_teacher_id: aisel.uid }).select("id, join_token").single();
+  if (ins.error || !ins.data.join_token) return false;
+  const upd = await aisel.from("classes").update({ name: name + "X" }).eq("id", ins.data.id).select();
+  const del = await aisel.from("classes").delete().eq("id", ins.data.id).select();
+  return !upd.error && upd.data.length === 1 && !del.error && del.data.length === 1;
+});
+await test("Sınıf öğr.: başkası adına sınıf açamaz", async () =>
+  denied(await aisel.from("classes").insert({ name: `X-${Date.now() % 100000}`, class_teacher_id: mehmetId }).select()));
+await test("Sınıf öğr.: davet kodunu kendisi belirleyemez", async () =>
+  !!(await aisel.from("classes").insert({ name: `J-${Date.now() % 100000}`, class_teacher_id: aisel.uid, join_token: "5a-hack" }).select()).error);
+await test("Sınıf öğr.: başka sınıfı silemez", async () => {
+  await aisel.from("classes").delete().eq("id", c6b);
+  return !!(await svc.from("classes").select("id").eq("id", c6b).maybeSingle()).data;
+});
+await test("Branş: sınıf açamaz", async () =>
+  denied(await irina.from("classes").insert({ name: `B-${Date.now() % 100000}`, class_teacher_id: irina.uid }).select()));
 await test("Sınıf öğr.: başkasının rolünü değiştiremez", async () =>
   denied(await aisel.from("profiles").update({ role: "super_admin" }).eq("id", irina.uid).select()));
 await test("Sınıf öğr.: başka sınıfın klasörüne fotoğraf yükleyemez", async () =>

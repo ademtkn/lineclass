@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import type { NoteStatus } from "@/lib/types";
+import { getT } from "@/lib/i18n/server";
 
 export type FormState = { error?: string; ok?: boolean };
 
@@ -13,9 +14,10 @@ const STATUSES: NoteStatus[] = ["positive", "neutral", "concern"];
 /** Branş ve isim seçimi (ilk girişte ve profil ekranında). */
 export async function updateProfile(_prev: FormState, formData: FormData): Promise<FormState> {
   const profile = await requireRole();
+  const { t } = await getT();
   const fullName = String(formData.get("full_name") ?? "").trim();
   const branch = String(formData.get("branch") ?? "").trim();
-  if (!fullName || !branch) return { error: "Ad soyad ve branş seçimi gerekli." };
+  if (!fullName || !branch) return { error: t("profile.errRequired") };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -30,13 +32,14 @@ export async function updateProfile(_prev: FormState, formData: FormData): Promi
 
 export async function addNote(_prev: FormState, formData: FormData): Promise<FormState> {
   const profile = await requireRole();
+  const { t } = await getT();
   const studentId = String(formData.get("student_id") ?? "");
   const text = String(formData.get("note_text") ?? "").trim();
   const status = String(formData.get("status") ?? "neutral") as NoteStatus;
 
-  if (!text) return { error: "Not boş olamaz." };
-  if (text.length > 4000) return { error: "Not en fazla 4000 karakter olabilir." };
-  if (!STATUSES.includes(status)) return { error: "Geçersiz durum." };
+  if (!text) return { error: t("noteForm.errEmpty") };
+  if (text.length > 4000) return { error: t("noteForm.errLong") };
+  if (!STATUSES.includes(status)) return { error: t("noteForm.errStatus") };
 
   const supabase = await createClient();
   // RLS: öğretmen sadece erişebildiği sınıftaki öğrenciye, kendi adına not ekleyebilir.
@@ -46,7 +49,7 @@ export async function addNote(_prev: FormState, formData: FormData): Promise<For
     note_text: text,
     status,
   });
-  if (error) return { error: "Not kaydedilemedi: " + error.message };
+  if (error) return { error: t("noteForm.errSave") };
 
   revalidatePath(`/teacher/students/${studentId}`);
   revalidatePath(`/admin/students/${studentId}`);

@@ -35,5 +35,5 @@ export async function requireRole(...roles: Role[]): Promise<Profile> {
 }
 
 export function homeFor(role: Role) {
-  return role === "branch_teacher" ? "/teacher" : "/admin";
+  return role === "branch_teacher" ? "/teacher" : role === "super_admin" ? "/admin/users" : "/admin";
 }

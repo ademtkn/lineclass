@@ -6,10 +6,12 @@ import { StudentHeader } from "@/components/StudentHeader";
 import { requireRole } from "@/lib/auth";
 import { getStudentNotes, getStudentWithClass } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/server";
 
 export default async function StudentDetailPage(props: PageProps<"/teacher/students/[studentId]">) {
   const { studentId } = await props.params;
   const profile = await requireRole("branch_teacher", "class_teacher");
+  const { t } = await getT();
   const supabase = await createClient();
 
   const [student, notes] = await Promise.all([
@@ -31,7 +33,7 @@ export default async function StudentDetailPage(props: PageProps<"/teacher/stude
         <NoteForm studentId={student.id} />
         <section>
           <h2 className="mb-3 text-lg font-bold">
-            Notlar{" "}
+            {t("notes.heading")}{" "}
             <span className="text-slate-400">({notes.length})</span>
           </h2>
           <NoteList notes={notes} currentUserId={profile.id} />

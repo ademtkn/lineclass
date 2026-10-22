@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
+import { getT } from "@/lib/i18n/server";
 import type { Student } from "@/lib/types";
 
 type Props = {
@@ -10,9 +11,10 @@ type Props = {
 };
 
 /** Fotoğraflı öğrenci kartları: telefonda 2, tablette 3-4, masaüstünde 5 sütun. */
-export function StudentGrid({ students, hrefFor, badgeFor }: Props) {
+export async function StudentGrid({ students, hrefFor, badgeFor }: Props) {
+  const { t } = await getT();
   if (students.length === 0) {
-    return <p className="card text-center text-slate-500">Bu sınıfta henüz öğrenci yok.</p>;
+    return <p className="card text-center text-slate-500">{t("roster.empty")}</p>;
   }
 
   return (

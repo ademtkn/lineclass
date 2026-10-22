@@ -2,11 +2,12 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { BRANCHES } from "@/lib/types";
+import { BRANCHES, subjectLabel, type SubjectNames } from "@/lib/i18n/branches";
+import { useI18n } from "@/lib/i18n/client";
 import type { JoinState } from "./actions";
 
 type Teacher = { id: string; full_name: string; branch: string | null };
-type ClassSubject = { subject: string; teacherId: string | null; teacherName: string | null };
+type ClassSubject = { subject: string; names: SubjectNames | null; teacherId: string | null; teacherName: string | null };
 
 type Props = {
   teachers: Teacher[];
@@ -18,6 +19,7 @@ type Props = {
 
 /** Önce branş, sonra isim: o branştaki kayıtlı öğretmenler tek dokunuşla, yoksa ad yazılır. */
 export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }: Props) {
+  const { t: tr, locale } = useI18n();
   const [branch, setBranch] = useState<string | null>(null);
   const [typingNew, setTypingNew] = useState(false);
   const [state, newAction] = useActionState<JoinState, FormData>(joinNew, {});
@@ -36,13 +38,14 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
     const extra = classSubjects.map((x) => x.subject).filter((x) => !BRANCHES.includes(x));
     return [...BRANCHES, ...extra].sort((a, b) => rank(a) - rank(b));
   }, [teachersFor, subjectOf, classSubjects]);
+  const nameOf = (b: string) => subjectLabel(b, subjectOf.get(b)?.names, locale);
   const inBranch = branch ? teachersFor(branch) : [];
   const showNewForm = branch !== null && (typingNew || inBranch.length === 0);
 
   if (!branch) {
     return (
       <section>
-        <h2 className="mb-3 text-center text-lg font-bold">Branşınız hangisi?</h2>
+        <h2 className="mb-3 text-center text-lg font-bold">{tr("join.branchQ")}</h2>
         <div className="grid grid-cols-2 gap-2">
           {branches.map((b) => (
             <button
@@ -55,7 +58,7 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
                   : "bg-slate-50 text-slate-600 ring-slate-200"
               }`}
             >
-              {b}
+              {nameOf(b)}
               <BranchHint count={teachersFor(b).length} subject={subjectOf.get(b)} />
             </button>
           ))}
@@ -67,7 +70,7 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">{branch}</h2>
+        <h2 className="text-lg font-bold">{nameOf(branch)}</h2>
         <button
           type="button"
           onClick={() => {
@@ -76,13 +79,13 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
           }}
           className="rounded-xl px-3 py-2 text-sm text-brand-700 hover:bg-brand-50"
         >
-          Branşı değiştir
+          {tr("join.changeBranch")}
         </button>
       </div>
 
       {!showNewForm && (
         <>
-          <p className="text-sm text-slate-600">Adınıza dokunun:</p>
+          <p className="text-sm text-slate-600">{tr("join.tapName")}</p>
           <ul className="grid gap-2">
             {inBranch.map((t) => (
               <li key={t.id}>
@@ -94,7 +97,7 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
             ))}
           </ul>
           <button type="button" onClick={() => setTypingNew(true)} className="btn-ghost w-full">
-            Listede yokum
+            {tr("join.notListed")}
           </button>
         </>
       )}
@@ -102,7 +105,7 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
       {showNewForm && (
         <form action={newAction} className="card space-y-3 p-5">
           <input type="hidden" name="branch" value={branch} />
-          <label htmlFor="full_name" className="label">Adınız Soyadınız</label>
+          <label htmlFor="full_name" className="label">{tr("join.fullName")}</label>
           <input
             id="full_name"
             name="full_name"
@@ -111,14 +114,14 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
             autoFocus
             autoComplete="name"
             enterKeyHint="go"
-            placeholder="Örn: Mehmet Yılmaz"
+            placeholder={tr("join.namePlaceholder")}
             className="input"
           />
           {state.error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
           <SubmitButton />
           {inBranch.length > 0 && (
             <button type="button" onClick={() => setTypingNew(false)} className="w-full text-sm text-slate-500 underline">
-              Listeye geri dön
+              {tr("join.backToList")}
             </button>
           )}
         </form>
@@ -128,10 +131,11 @@ export function TeacherPicker({ teachers, classSubjects, joinExisting, joinNew }
 }
 
 function BranchHint({ count, subject }: { count: number; subject?: ClassSubject }) {
-  if (count) return <span className="text-[11px] font-medium text-brand-600">{count} öğretmen</span>;
+  const { t } = useI18n();
+  if (count) return <span className="text-[11px] font-medium text-brand-600">{t("join.teachersCount", { n: count })}</span>;
   if (subject?.teacherName)
     return <span className="max-w-full truncate text-[11px] font-medium text-slate-500">{subject.teacherName}</span>;
-  if (subject) return <span className="text-[11px] font-medium text-amber-600">öğretmen bekleniyor</span>;
+  if (subject) return <span className="text-[11px] font-medium text-amber-600">{t("join.waiting")}</span>;
   return null;
 }
 
@@ -151,10 +155,11 @@ function TeacherButton({ name }: { name: string }) {
 }
 
 function SubmitButton() {
+  const { t } = useI18n();
   const { pending } = useFormStatus();
   return (
     <button disabled={pending} className="btn-primary w-full">
-      {pending ? "Giriliyor…" : "Sınıfa Gir"}
+      {pending ? t("join.entering") : t("join.enter")}
     </button>
   );
 }

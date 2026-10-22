@@ -4,7 +4,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
-import { BRANCHES } from "@/lib/types";
+import { BRANCHES } from "@/lib/i18n/branches";
+import { getT } from "@/lib/i18n/server";
 import { findClassByToken } from "@/lib/join";
 
 export type JoinState = { error?: string };
@@ -73,11 +74,12 @@ export async function joinAsExisting(token: string, fd: FormData) {
 /** İlk kez gelen öğretmen: ad + branş ile şifresiz hesap açılır ve sınıfa eklenir. */
 export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): Promise<JoinState> {
   const cls = await findClassByToken(token);
-  if (!cls) return { error: "Bu link artık geçerli değil. Sınıf öğretmeninizden yeni link isteyin." };
+  const { t } = await getT();
+  if (!cls) return { error: t("join.errLink") };
 
   const fullName = String(fd.get("full_name") ?? "").trim().replace(/\s+/g, " ");
   const branch = String(fd.get("branch") ?? "");
-  if (fullName.length < 3) return { error: "Lütfen adınızı ve soyadınızı yazın." };
+  if (fullName.length < 3) return { error: t("join.errName") };
   const admin = createAdminClient();
   if (!BRANCHES.includes(branch)) {
     const { data: custom } = await admin
@@ -86,7 +88,7 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
       .eq("class_id", cls.id)
       .eq("subject", branch)
       .maybeSingle();
-    if (!custom) return { error: "Lütfen branşınızı seçin." };
+    if (!custom) return { error: t("join.errBranch") };
   }
 
   // Aynı ad + branşla daha önce (başka bir sınıfın linkinden) katılmışsa aynı hesabı kullan.
@@ -112,7 +114,7 @@ export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): 
       app_metadata: { role: "branch_teacher", via_link: true },
       user_metadata: { full_name: fullName, branch },
     });
-    if (error) return { error: "Hesap oluşturulamadı: " + error.message };
+    if (error) return { error: t("join.errCreate") };
     teacherId = data.user.id;
   }
 

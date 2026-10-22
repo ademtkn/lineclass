@@ -4,11 +4,13 @@ import { ClassRoster } from "@/components/ClassRoster";
 import { requireRole } from "@/lib/auth";
 import { isToday, recentSinceIso } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/server";
 
 export default async function ClassStudentsPage(props: PageProps<"/teacher/classes/[classId]">) {
   const { classId } = await props.params;
   const profile = await requireRole("branch_teacher", "class_teacher");
   const supabase = await createClient();
+  const { t } = await getT();
 
   const since = recentSinceIso();
   const [{ data: cls }, { data: students }, { data: recentNotes }] = await Promise.all([
@@ -36,7 +38,7 @@ export default async function ClassStudentsPage(props: PageProps<"/teacher/class
 
   return (
     <>
-      <AppHeader profile={profile} title={`${cls.name} Sınıfı`} backHref="/teacher" />
+      <AppHeader profile={profile} title={t("class.title", { name: cls.name })} backHref="/teacher" />
       <main className="mx-auto max-w-5xl px-4 py-3">
         <ClassRoster students={students ?? []} notedTodayIds={notedTodayIds} />
       </main>

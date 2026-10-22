@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import { useI18n } from "@/lib/i18n/client";
 
 /** Beklenmeyen hata / bağlantı sorunu: kullanıcıyı çıkarmadan tekrar denemeyi sunar. */
 export default function ErrorPage({ error, retry }: { error: unknown; retry: () => void }) {
+  const { t } = useI18n();
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -13,12 +15,10 @@ export default function ErrorPage({ error, retry }: { error: unknown; retry: () 
       <p className="text-5xl" aria-hidden>
         📶
       </p>
-      <h1 className="mt-4 text-xl font-bold">Bağlantı sorunu</h1>
-      <p className="mt-2 max-w-xs text-slate-600">
-        Sunucuya şu an ulaşılamıyor. İnternet bağlantınızı kontrol edip tekrar deneyin.
-      </p>
+      <h1 className="mt-4 text-xl font-bold">{t("error.title")}</h1>
+      <p className="mt-2 max-w-xs text-slate-600">{t("error.body")}</p>
       <button type="button" onClick={() => retry()} className="btn-primary mt-6 w-full max-w-xs">
-        Tekrar dene
+        {t("error.retry")}
       </button>
     </main>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { NoteForm } from "@/components/NoteForm";
+import { useI18n } from "@/lib/i18n/client";
 import type { Student } from "@/lib/types";
 
 type Props = {
@@ -14,30 +15,31 @@ type Props = {
 
 /** Öğretmenin sınıf ekranı: arama, bugünkü ilerleme ve sayfadan çıkmadan hızlı not. */
 export function ClassRoster({ students, notedTodayIds }: Props) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [noted, setNoted] = useState(() => new Set(notedTodayIds));
   const [active, setActive] = useState<Student | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const q = query.trim().toLocaleLowerCase("tr");
+  const q = query.trim().toLocaleLowerCase();
   const visible = q
-    ? students.filter((s) => `${s.first_name} ${s.last_name}`.toLocaleLowerCase("tr").includes(q))
+    ? students.filter((s) => `${s.first_name} ${s.last_name}`.toLocaleLowerCase().includes(q))
     : students;
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(timer);
   }, [toast]);
 
   function onSaved(s: Student) {
     setNoted((prev) => new Set(prev).add(s.id));
     setActive(null);
-    setToast(`${s.first_name} için not kaydedildi ✓`);
+    setToast(t("roster.saved", { name: s.first_name }));
   }
 
   if (students.length === 0) {
-    return <p className="card text-center text-slate-500">Bu sınıfta henüz öğrenci yok.</p>;
+    return <p className="card text-center text-slate-500">{t("roster.empty")}</p>;
   }
 
   return (
@@ -47,9 +49,9 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="🔍  Öğrenci ara…"
+          placeholder={`🔍  ${t("roster.search")}`}
           className="input"
-          aria-label="Öğrenci ara"
+          aria-label={t("roster.search")}
         />
         <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
@@ -58,12 +60,12 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
               style={{ width: `${(noted.size / students.length) * 100}%` }}
             />
           </div>
-          Bugün {noted.size}/{students.length} öğrenciye not
+          {t("roster.today", { done: noted.size, total: students.length })}
         </div>
       </div>
 
       {visible.length === 0 ? (
-        <p className="card text-center text-slate-500">“{query}” ile eşleşen öğrenci yok.</p>
+        <p className="card text-center text-slate-500">{t("roster.noMatch", { q: query })}</p>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {visible.map((s) => {
@@ -80,7 +82,7 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
                   {done && (
                     <span
                       className="absolute right-3 top-3 grid size-6 place-items-center rounded-full bg-emerald-500 text-xs font-bold text-white"
-                      aria-label="Bugün not yazıldı"
+                      aria-label={t("roster.notedToday")}
                     >
                       ✓
                     </span>
@@ -113,6 +115,7 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
 }
 
 function QuickNoteSheet({ student, onClose, onSaved }: { student: Student; onClose: () => void; onSaved: () => void }) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -125,8 +128,8 @@ function QuickNoteSheet({ student, onClose, onSaved }: { student: Student; onClo
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={`${student.first_name} ${student.last_name} için not`}>
-      <button type="button" aria-label="Kapat" onClick={onClose} className="absolute inset-0 bg-slate-900/40" />
+    <div className="fixed inset-0 z-30 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={t("roster.noteFor", { name: `${student.first_name} ${student.last_name}` })}>
+      <button type="button" aria-label={t("common.close")} onClick={onClose} className="absolute inset-0 bg-slate-900/40" />
       <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl sm:rounded-3xl">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden" />
         <div className="mb-4 flex items-center gap-3">
@@ -137,7 +140,7 @@ function QuickNoteSheet({ student, onClose, onSaved }: { student: Student; onClo
             </p>
             {student.short_info && <p className="truncate text-sm text-slate-500">{student.short_info}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Kapat" className="grid size-11 place-items-center rounded-2xl text-xl text-slate-400 hover:bg-slate-100">
+          <button type="button" onClick={onClose} aria-label={t("common.close")} className="grid size-11 place-items-center rounded-2xl text-xl text-slate-400 hover:bg-slate-100">
             ✕
           </button>
         </div>
@@ -145,7 +148,7 @@ function QuickNoteSheet({ student, onClose, onSaved }: { student: Student; onClo
         <NoteForm studentId={student.id} onSaved={onSaved} compact />
 
         <Link href={`/teacher/students/${student.id}`} className="mt-2 flex min-h-11 items-center justify-center text-sm text-brand-700 underline">
-          Bu öğrenciye yazdığım tüm notlar →
+          {t("roster.allMyNotes")}
         </Link>
       </div>
     </div>

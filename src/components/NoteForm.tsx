@@ -2,6 +2,8 @@
 
 import { useActionState, useRef, useState, useSyncExternalStore } from "react";
 import { addNote, type FormState } from "@/app/teacher/actions";
+import { useI18n } from "@/lib/i18n/client";
+import type { Locale } from "@/lib/i18n/locales";
 import { STATUS_META, type NoteStatus } from "@/lib/types";
 
 const VOICE_LANGS = [
@@ -10,6 +12,8 @@ const VOICE_LANGS = [
   { code: "ru-RU", label: "RU" },
   { code: "en-US", label: "EN" },
 ];
+// Sesle yazma varsayılan olarak arayüz dilinde dinler
+const VOICE_FOR_LOCALE: Record<Locale, string> = { tr: "tr-TR", ky: "ky-KG", ru: "ru-RU", en: "en-US" };
 
 // Web Speech API tarayıcı tipleri (Chrome/Safari'de webkit önekli)
 type SpeechRecognitionLike = {
@@ -40,9 +44,10 @@ type Props = {
 };
 
 export function NoteForm({ studentId, onSaved, compact = false }: Props) {
+  const { t, locale } = useI18n();
   const [text, setText] = useState("");
   const [status, setStatus] = useState<NoteStatus>("neutral");
-  const [voiceLang, setVoiceLang] = useState("tr-TR");
+  const [voiceLang, setVoiceLang] = useState(VOICE_FOR_LOCALE[locale]);
   const [listening, setListening] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceSupported = useSyncExternalStore(noopSubscribe, () => getRecognitionCtor() !== null, () => false);
@@ -74,7 +79,7 @@ export function NoteForm({ studentId, onSaved, compact = false }: Props) {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) chunk += e.results[i][0].transcript;
       }
-      if (chunk) setText((t) => (t ? `${t.trimEnd()} ${chunk.trim()}` : chunk.trim()));
+      if (chunk) setText((prev) => (prev ? `${prev.trimEnd()} ${chunk.trim()}` : chunk.trim()));
     };
     rec.onend = () => setListening(false);
     rec.onerror = () => setListening(false);
@@ -88,9 +93,9 @@ export function NoteForm({ studentId, onSaved, compact = false }: Props) {
       <input type="hidden" name="student_id" value={studentId} />
       <input type="hidden" name="status" value={status} />
 
-      {!compact && <h2 className="text-lg font-bold">Yeni not / gözlem</h2>}
+      {!compact && <h2 className="text-lg font-bold">{t("noteForm.title")}</h2>}
 
-      <div className="flex gap-2" role="radiogroup" aria-label="Durum">
+      <div className="flex gap-2" role="radiogroup" aria-label={t("noteForm.status")}>
         {(Object.keys(STATUS_META) as NoteStatus[]).map((s) => {
           const meta = STATUS_META[s];
           const active = s === status;
@@ -106,7 +111,7 @@ export function NoteForm({ studentId, onSaved, compact = false }: Props) {
               }`}
             >
               <span aria-hidden>{meta.emoji}</span>
-              {meta.label}
+              <span className="truncate">{t(`status.${s}`)}</span>
             </button>
           );
         })}
@@ -119,7 +124,7 @@ export function NoteForm({ studentId, onSaved, compact = false }: Props) {
         rows={5}
         maxLength={4000}
         required
-        placeholder="Ders içi gözleminizi yazın…"
+        placeholder={t("noteForm.placeholder")}
         className="input min-h-36 resize-y py-3 leading-relaxed"
       />
 
@@ -131,13 +136,13 @@ export function NoteForm({ studentId, onSaved, compact = false }: Props) {
             className={`btn flex-1 ${listening ? "animate-pulse bg-red-600 text-white" : "bg-slate-100 text-slate-700"}`}
           >
             <span aria-hidden>🎤</span>
-            {listening ? "Dinleniyor… durdur" : "Sesle yaz"}
+            {listening ? t("noteForm.listening") : t("noteForm.voice")}
           </button>
           <select
             value={voiceLang}
             onChange={(e) => setVoiceLang(e.target.value)}
             disabled={listening}
-            aria-label="Konuşma dili"
+            aria-label={t("noteForm.voiceLang")}
             className="input w-20 px-3"
           >
             {VOICE_LANGS.map((l) => (
@@ -150,10 +155,10 @@ export function NoteForm({ studentId, onSaved, compact = false }: Props) {
       )}
 
       {state.error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
-      {state.ok && !pending && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Not kaydedildi ✓</p>}
+      {state.ok && !pending && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{t("noteForm.saved")}</p>}
 
       <button disabled={pending || !text.trim()} className="btn-primary w-full">
-        {pending ? "Kaydediliyor…" : "Notu Kaydet"}
+        {pending ? t("common.saving") : t("noteForm.save")}
       </button>
     </form>
   );

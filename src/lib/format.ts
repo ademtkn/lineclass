@@ -1,13 +1,16 @@
+import { LOCALE_META, type Locale } from "@/lib/i18n/locales";
+
 const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE ?? "Asia/Bishkek";
 
-const dateTime = new Intl.DateTimeFormat("tr-TR", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: TIME_ZONE,
-});
+const formatters = new Map<Locale, Intl.DateTimeFormat>();
 
-export function formatDateTime(iso: string) {
-  return dateTime.format(new Date(iso));
+export function formatDateTime(iso: string, locale: Locale = "tr") {
+  let f = formatters.get(locale);
+  if (!f) {
+    f = new Intl.DateTimeFormat(LOCALE_META[locale].intl, { dateStyle: "medium", timeStyle: "short", timeZone: TIME_ZONE });
+    formatters.set(locale, f);
+  }
+  return f.format(new Date(iso));
 }
 
 const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
