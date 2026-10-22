@@ -22,7 +22,7 @@ Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
 ## Kurulum (supabase.com bulut projesi)
 
 1. [supabase.com](https://supabase.com)'da bir proje açın.
-2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001` … `0004`) yapıştırıp çalıştırın.
+2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001` … `0005`) yapıştırıp çalıştırın.
 3. Ortam değişkenleri:
    ```bash
    cp .env.example .env.local   # değerleri Supabase → Project Settings → API'den doldurun
@@ -76,6 +76,8 @@ supabase/migrations/0001_init.sql   Şema, trigger, RLS, storage bucket
 supabase/migrations/0002_class_join_links.sql  Sınıf davet linki (join_token, link yenileme)
 supabase/migrations/0003_class_subjects.sql     Sınıf dersleri + derse öğretmen atama (erişim tetikleyicisi)
 supabase/migrations/0004_short_join_codes.sql   Kısa davet kodu (5a-k7m2qxp)
+supabase/migrations/0005_security_hardening.sql Güvenlik sağlamlaştırma (sütun yetkileri, storage, fonksiyonlar)
+scripts/security-test.mjs           Otomatik güvenlik testleri (npm run test:security)
 scripts/seed.mjs                    Demo kullanıcı / sınıf / öğrenci / not
 src/
   proxy.ts                          (Next 16'da middleware → proxy) oturum yenileme + /login yönlendirmesi
@@ -101,6 +103,21 @@ src/
 ## Çeviri
 
 `TRANSLATE_PROVIDER` boşsa: `OPENAI_API_KEY` varsa OpenAI (`gpt-4o-mini`), yoksa `GEMINI_API_KEY` varsa Gemini, ikisi de yoksa **mock** (`[EN · demo çeviri] …`). Gerçek çeviriler `note_translations` tablosunda saklanır; aynı not aynı dile ikinci kez ücretlendirilmez.
+
+## Güvenlik
+
+```bash
+npm run test:security   # uygulama + yerel Supabase çalışırken; 36 saldırı senaryosu
+```
+
+Testler her rol için yapılmaması gerekenleri dener: başka sınıfı/notu görme, başkası adına not yazma, rol yükseltme, e-posta değiştirme/okuma, sahte çeviri enjekte etme, başka sınıfın klasörüne veya SVG dosya yükleme, girişsiz API/DB fonksiyonu çağırma ve güvenlik başlıkları.
+
+- Yetkiler veritabanında (RLS + sütun yetkileri) uygulanır; service role yalnızca sunucuda, yetki kontrolünden sonra kullanılır.
+- Davet linki yalnızca **linkle oluşturulmuş** branş öğretmeni hesaplarını şifresiz açar. Şifreli hesaplar (admin, sınıf öğretmeni, admin'in açtığı öğretmenler) linkle açılamaz; isimleri yazılarak da ele geçirilemez.
+- Bilinçli takas: linke sahip biri, o sınıfa linkle katılmış öğretmenlerden biri adına not yazabilir. Link sızarsa **yeni link oluştur** ile kapatın.
+- Supabase'e geçici olarak ulaşılamazsa kullanıcı çıkışa atılmaz, "Bağlantı sorunu / Tekrar dene" ekranı görür.
+- Çeviri API'sinde kullanıcı başına dakikada 20 istek sınırı vardır (tek sunucu için bellek içi; çok sunuculu kurulumda Redis gibi paylaşılan bir depo kullanın).
+- Yayında HTTPS kullanın; `Strict-Transport-Security` başlığı yalnızca HTTPS üzerinde etkilidir.
 
 ## Sonraki adımlar (öneri)
 

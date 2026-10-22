@@ -107,7 +107,7 @@ export default async function ManagePage(props: PageProps<"/admin/manage">) {
               <ActionForm action={createClass} submitLabel="Sınıf Oluştur">
                 <input name="name" placeholder="Örn: 5-A" required className="input" />
                 <select name="class_teacher_id" defaultValue="" className="input">
-                  <option value="">Sınıf öğretmeni (sonra da atanabilir)</option>
+                  <option value="">Sınıf öğretmeni seçin</option>
                   {teachers.map((t) => (
                     <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
                   ))}
@@ -123,7 +123,7 @@ export default async function ManagePage(props: PageProps<"/admin/manage">) {
                     <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-brand-50 text-lg font-bold text-brand-700">
                       {c.name}
                     </span>
-                    <form action={setClassTeacher} className="flex min-w-0 flex-1 gap-2">
+                    <form action={setClassTeacher} className="flex min-w-0 flex-1 basis-52 gap-2">
                       <input type="hidden" name="class_id" value={c.id} />
                       <select
                         name="class_teacher_id"

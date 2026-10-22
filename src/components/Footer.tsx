@@ -8,7 +8,7 @@ export function Footer() {
           href="https://line.kg"
           target="_blank"
           rel="noopener"
-          className="font-semibold text-brand-600 underline-offset-2 hover:underline"
+          className="inline-block py-2 font-semibold text-brand-600 underline-offset-2 hover:underline"
         >
           line.kg
         </a>{" "}

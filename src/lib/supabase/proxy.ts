@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { JOIN_CODE_RE } from "@/lib/join-code";
 
 const PUBLIC_PATHS = ["/login"];
@@ -30,7 +31,12 @@ export async function updateSession(request: NextRequest) {
   // getUser() token'ı Supabase'e doğrulatır ve gerekirse yeniler.
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  // Supabase'e geçici olarak ulaşılamıyorsa (zayıf Wi-Fi, sunucu yükü) kullanıcıyı çıkış yapmış sayma;
+  // sayfa kendi hata ekranında "tekrar dene" gösterir.
+  if (!user && isAuthRetryableFetchError(error)) return response;
 
   const path = request.nextUrl.pathname;
   // Kök adresteki sınıf davet linkleri (örn. /5a-k7m2qxp) girişsiz açılır

@@ -128,7 +128,7 @@ function Shell({
     <main className="flex-1 px-4 py-8">
       <div className="mx-auto max-w-md">
         {backHref && (
-          <Link href={backHref} className="mb-2 inline-block text-sm text-slate-500">
+          <Link href={backHref} className="-ml-2 mb-1 inline-flex min-h-11 items-center px-2 text-sm text-slate-500">
             ← Geri
           </Link>
         )}

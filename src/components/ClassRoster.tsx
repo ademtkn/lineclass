@@ -144,7 +144,7 @@ function QuickNoteSheet({ student, onClose, onSaved }: { student: Student; onClo
 
         <NoteForm studentId={student.id} onSaved={onSaved} compact />
 
-        <Link href={`/teacher/students/${student.id}`} className="mt-4 block text-center text-sm text-brand-700 underline">
+        <Link href={`/teacher/students/${student.id}`} className="mt-2 flex min-h-11 items-center justify-center text-sm text-brand-700 underline">
           Bu öğrenciye yazdığım tüm notlar →
         </Link>
       </div>

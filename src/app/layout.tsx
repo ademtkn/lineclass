@@ -23,7 +23,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="tr" className={`${geistSans.variable} h-full`}>
       <body className="flex min-h-dvh flex-col font-sans">
-        <div className="flex flex-1 flex-col">{children}</div>
+        {/* *:w-full: flex sütununda mx-auto ile ortalanan içerik daralmasın */}
+        <div className="flex flex-1 flex-col *:w-full">{children}</div>
         <Footer />
       </body>
     </html>
