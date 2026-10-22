@@ -42,7 +42,8 @@ export async function joinAsCurrent(token: string) {
 }
 
 /** Bu sınıfa daha önce katılmış bir branş öğretmeni olarak devam eder. */
-export async function joinAsExisting(token: string, teacherId: string) {
+export async function joinAsExisting(token: string, fd: FormData) {
+  const teacherId = String(fd.get("teacher_id") ?? "");
   const cls = await findClassByToken(token);
   if (!cls) redirect(`/join/${token}`);
 

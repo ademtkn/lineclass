@@ -31,7 +31,15 @@ function getRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
 
 const noopSubscribe = () => () => {};
 
-export function NoteForm({ studentId }: { studentId: string }) {
+type Props = {
+  studentId: string;
+  /** Hızlı not panelinde: kayıttan sonra paneli kapatmak için */
+  onSaved?: () => void;
+  /** Panelde başlık ve kart çerçevesi gereksiz */
+  compact?: boolean;
+};
+
+export function NoteForm({ studentId, onSaved, compact = false }: Props) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<NoteStatus>("neutral");
   const [voiceLang, setVoiceLang] = useState("tr-TR");
@@ -45,6 +53,7 @@ export function NoteForm({ studentId }: { studentId: string }) {
     if (result.ok) {
       setText("");
       setStatus("neutral");
+      onSaved?.();
     }
     return result;
   }, {});
@@ -75,11 +84,11 @@ export function NoteForm({ studentId }: { studentId: string }) {
   }
 
   return (
-    <form action={action} className="card space-y-4 p-5">
+    <form action={action} className={compact ? "space-y-4" : "card space-y-4 p-5"}>
       <input type="hidden" name="student_id" value={studentId} />
       <input type="hidden" name="status" value={status} />
 
-      <h2 className="text-lg font-bold">Yeni not / gözlem</h2>
+      {!compact && <h2 className="text-lg font-bold">Yeni not / gözlem</h2>}
 
       <div className="flex gap-2" role="radiogroup" aria-label="Durum">
         {(Object.keys(STATUS_META) as NoteStatus[]).map((s) => {

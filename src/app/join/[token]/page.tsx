@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
-import { ROLE_LABELS, type Profile } from "@/lib/types";
+import { type Profile } from "@/lib/types";
 import { findClassByToken } from "@/lib/join";
 import { joinAsCurrent, joinAsExisting, joinAsNew, switchUser } from "./actions";
-import { JoinNewForm } from "./JoinNewForm";
+import { TeacherPicker } from "./TeacherPicker";
 
 export const metadata = { title: "Sınıfa katıl · LineClass" };
 
@@ -27,54 +28,53 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
     );
   }
 
-  // 1. adım: sınıf adı + sınıf öğretmeni kartı. Dokununca öğretmen seçimine geçilir.
+  const profile = await getProfile();
+
+  // 1. adım: sınıf adı + sınıf öğretmeni kartı.
+  // Bu telefonda daha önce giriş yapılmışsa kart üzerinden tek dokunuşla öğrencilere geçilir.
   if (adim !== "ogretmen") {
+    const known = profile && profile.role !== "super_admin" ? profile : null;
     return (
       <Shell>
         <p className="mb-3 text-center text-slate-600">Bu sınıfa not girişi için davet edildiniz.</p>
-        <Link
-          href={`/join/${token}?adim=ogretmen`}
-          className="card block bg-gradient-to-br from-brand-500 to-brand-700 p-6 text-white ring-0 shadow-lg shadow-brand-600/20 transition active:scale-[0.98]"
-        >
+        <div className="card bg-gradient-to-br from-brand-500 to-brand-700 p-6 text-white ring-0 shadow-lg shadow-brand-600/20">
           <span className="block text-sm text-white/80">Sınıf</span>
           <span className="block text-5xl font-bold tracking-tight">{cls.name}</span>
           <span className="mt-5 block border-t border-white/20 pt-4">
             <span className="block text-sm text-white/80">Sınıf öğretmeni</span>
             <span className="block text-lg font-semibold">{cls.classTeacherName ?? "Atanmamış"}</span>
           </span>
-          <span className="mt-5 flex min-h-12 items-center justify-center rounded-2xl bg-white font-semibold text-brand-700">
-            Devam et →
-          </span>
-        </Link>
-      </Shell>
-    );
-  }
 
-  const profile = await getProfile();
-
-  // Zaten giriş yapılmış (aynı telefon): tek dokunuşla devam
-  if (profile) {
-    return (
-      <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/join/${token}`}>
-        <div className="card space-y-4 p-6 text-center">
-          <p className="text-slate-600">Bu cihazda şu kişi olarak giriş yapılmış:</p>
-          <div>
-            <p className="text-xl font-bold">{profile.full_name || profile.email}</p>
-            <p className="text-sm text-slate-500">
-              {ROLE_LABELS[profile.role]}
-              {profile.branch && ` · ${profile.branch}`}
-            </p>
-          </div>
-          <form action={joinAsCurrent.bind(null, token)}>
-            <button className="btn-primary w-full">{cls.name} sınıfına devam et</button>
-          </form>
-          <form action={switchUser.bind(null, token)}>
-            <button className="text-sm text-slate-500 underline">Ben bu kişi değilim</button>
-          </form>
+          {known ? (
+            <form action={joinAsCurrent.bind(null, token)} className="mt-5">
+              <button className="flex min-h-14 w-full flex-col items-center justify-center rounded-2xl bg-white font-semibold text-brand-700 transition active:scale-[0.98]">
+                <span>{known.full_name} olarak devam et →</span>
+                {known.branch && <span className="text-xs font-normal text-slate-500">{known.branch}</span>}
+              </button>
+            </form>
+          ) : (
+            <Link
+              href={`/join/${token}?adim=ogretmen`}
+              className="mt-5 flex min-h-14 items-center justify-center rounded-2xl bg-white font-semibold text-brand-700 transition active:scale-[0.98]"
+            >
+              Devam et →
+            </Link>
+          )}
         </div>
+
+        {known && (
+          <form action={switchUser.bind(null, token)} className="mt-4 text-center">
+            <button className="min-h-11 px-3 text-sm text-slate-500 underline">
+              {known.full_name} değil misiniz? Başka öğretmen seçin
+            </button>
+          </form>
+        )}
       </Shell>
     );
   }
+
+  // 2. adım bir oturum varken açılırsa karşılama kartındaki kısayola dön
+  if (profile) redirect(`/join/${token}`);
 
   // Bu sınıfa daha önce katılmış branş öğretmenleri
   const admin = createAdminClient();
@@ -85,37 +85,16 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
   const teachers = (access ?? [])
     .map((a) => a.teacher as unknown as Pick<Profile, "id" | "full_name" | "branch" | "role"> | null)
     .filter((t): t is NonNullable<typeof t> => !!t && t.role === "branch_teacher")
-    .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"))
+    .map(({ id, full_name, branch }) => ({ id, full_name, branch }));
 
   return (
     <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/join/${token}`}>
-      {teachers.length > 0 && (
-        <section className="mb-6">
-          <h2 className="mb-2 font-semibold text-slate-700">Daha önce girdiyseniz adınıza dokunun</h2>
-          <ul className="grid gap-2">
-            {teachers.map((t) => (
-              <li key={t.id}>
-                <form action={joinAsExisting.bind(null, token, t.id)}>
-                  <button className="card flex w-full items-center justify-between gap-3 text-left transition active:scale-[0.98]">
-                    <span>
-                      <span className="block font-semibold">{t.full_name}</span>
-                      <span className="text-sm text-slate-500">{t.branch}</span>
-                    </span>
-                    <span className="text-xl text-brand-600" aria-hidden>→</span>
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section>
-        <h2 className="mb-2 font-semibold text-slate-700">
-          {teachers.length ? "Listede yoksanız: adınızı ve branşınızı seçin" : "Adınızı ve branşınızı seçin"}
-        </h2>
-        <JoinNewForm action={joinAsNew.bind(null, token)} />
-      </section>
+      <TeacherPicker
+        teachers={teachers}
+        joinExisting={joinAsExisting.bind(null, token)}
+        joinNew={joinAsNew.bind(null, token)}
+      />
     </Shell>
   );
 }
@@ -132,7 +111,7 @@ function Shell({
   backHref?: string;
 }) {
   return (
-    <main className="min-h-dvh px-4 py-8">
+    <main className="flex-1 px-4 py-8">
       <div className="mx-auto max-w-md">
         {backHref && (
           <Link href={backHref} className="mb-2 inline-block text-sm text-slate-500">

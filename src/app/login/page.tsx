@@ -7,7 +7,7 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(login, {});
 
   return (
-    <main className="flex min-h-dvh flex-col justify-center px-5 py-10">
+    <main className="flex flex-1 flex-col justify-center px-5 py-10">
       <div className="mx-auto w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 grid size-16 place-items-center rounded-3xl bg-brand-600 text-2xl font-bold text-white shadow-lg shadow-brand-600/30">
