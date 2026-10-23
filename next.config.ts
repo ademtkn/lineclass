@@ -17,8 +17,8 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   experimental: {
-    // Öğrenci fotoğrafı yüklemesi (en fazla 5 MB) Server Action ile yapılıyor
-    serverActions: { bodySizeLimit: "6mb" },
+    // Öğrenci fotoğrafı (en fazla 12 MB özgün dosya) Server Action ile yüklenir; sunucuda küçültülür
+    serverActions: { bodySizeLimit: "14mb" },
   },
   turbopack: {
     rules: {

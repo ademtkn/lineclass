@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n/client";
@@ -53,7 +54,14 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 rounded-2xl bg-white/60 px-4 py-3 text-center text-sm text-slate-500 ring-1 ring-slate-100">
+        <Link
+          href="/apply"
+          className="mt-4 flex min-h-12 items-center justify-center rounded-2xl text-sm font-semibold text-brand-700 ring-1 ring-brand-200 hover:bg-brand-50"
+        >
+          {t("login.apply")}
+        </Link>
+
+        <p className="mt-4 rounded-2xl bg-white/60 px-4 py-3 text-center text-sm text-slate-500 ring-1 ring-slate-100">
           <strong className="text-slate-700">{t("login.branchHintStrong")}</strong> {t("login.branchHintRest")}
         </p>
       </div>

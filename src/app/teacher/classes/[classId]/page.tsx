@@ -19,7 +19,9 @@ export default async function ClassStudentsPage(props: PageProps<"/teacher/class
       .from("students")
       .select("id, first_name, last_name, class_id, photo_url, short_info")
       .eq("class_id", classId)
-      .order("first_name"),
+      .eq("active", true)
+      .order("first_name")
+      .order("last_name"),
     // Öğretmenin son notları; "bugün" okulun saat dilimine göre aşağıda süzülür
     supabase
       .from("notes")

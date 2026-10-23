@@ -9,6 +9,7 @@ import {
   updateSubjectNames,
   type FormState,
 } from "@/app/admin/actions";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { BRANCHES, BRANCH_NAMES, branchLabel, subjectLabel, type SubjectNames } from "@/lib/i18n/branches";
 import { useI18n } from "@/lib/i18n/client";
 import { LOCALES, LOCALE_META } from "@/lib/i18n/locales";
@@ -165,17 +166,17 @@ function SubjectRow({ classId, subject, teachers }: { classId: string; subject: 
         <form action={deleteSubject}>
           <input type="hidden" name="class_id" value={classId} />
           <input type="hidden" name="subject_id" value={subject.id} />
-          <button
-            aria-label={t("subjects.removeLabel", { subject: name })}
+          <ConfirmButton
+            message={t("subjects.removeConfirm", { subject: name })}
             className="grid size-10 place-items-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"
           >
             ✕
-          </button>
+          </ConfirmButton>
         </form>
       </div>
       <details className="mt-1">
         <summary className="inline-flex min-h-8 cursor-pointer list-none items-center text-xs text-brand-700 underline">
-          {t("subjects.editNames")}
+          ✎ {t("subjects.editNames")}
         </summary>
         <NamesForm classId={classId} subject={subject} action={updateSubjectNames} submitLabel={t("common.save")} />
       </details>

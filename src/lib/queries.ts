@@ -8,10 +8,10 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 export async function getStudentWithClass(supabase: Supabase, studentId: string) {
   const { data } = await supabase
     .from("students")
-    .select("id, first_name, last_name, class_id, photo_url, short_info, class:classes(id, name)")
+    .select("id, first_name, last_name, class_id, photo_url, short_info, active, class:classes(id, name)")
     .eq("id", studentId)
     .maybeSingle();
-  return data as (Student & { class: { id: string; name: string } | null }) | null;
+  return data as (Student & { active: boolean; class: { id: string; name: string } | null }) | null;
 }
 
 /** Bir öğrencinin notları (RLS hangi notların görüneceğine karar verir), en yeni üstte. */

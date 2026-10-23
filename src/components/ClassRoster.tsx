@@ -21,6 +21,8 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
   const [active, setActive] = useState<Student | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Numara, arama yapılsa bile sınıf listesindeki sıraya göre sabit kalır
+  const numberOf = new Map(students.map((s, i) => [s.id, i + 1]));
   const q = query.trim().toLocaleLowerCase();
   const visible = q
     ? students.filter((s) => `${s.first_name} ${s.last_name}`.toLocaleLowerCase().includes(q))
@@ -62,6 +64,7 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
           </div>
           {t("roster.today", { done: noted.size, total: students.length })}
         </div>
+        <p className="mt-1 text-xs font-semibold text-slate-600">{t("classAdmin.enrolled", { n: students.length })}</p>
       </div>
 
       {visible.length === 0 ? (
@@ -79,6 +82,7 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
                     done ? "ring-2 ring-emerald-300" : ""
                   }`}
                 >
+                  <span className="absolute left-3 top-3 text-sm font-bold text-slate-400">{numberOf.get(s.id)}.</span>
                   {done && (
                     <span
                       className="absolute right-3 top-3 grid size-6 place-items-center rounded-full bg-emerald-500 text-xs font-bold text-white"

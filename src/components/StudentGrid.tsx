@@ -8,10 +8,12 @@ type Props = {
   hrefFor: (s: Student) => string;
   /** Kart altında gösterilecek küçük rozet (ör. not sayısı) */
   badgeFor?: (s: Student) => string | null;
+  /** Kartların köşesine sıra numarası (1., 2., …) yazar */
+  numbered?: boolean;
 };
 
 /** Fotoğraflı öğrenci kartları: telefonda 2, tablette 3-4, masaüstünde 5 sütun. */
-export async function StudentGrid({ students, hrefFor, badgeFor }: Props) {
+export async function StudentGrid({ students, hrefFor, badgeFor, numbered }: Props) {
   const { t } = await getT();
   if (students.length === 0) {
     return <p className="card text-center text-slate-500">{t("roster.empty")}</p>;
@@ -19,14 +21,17 @@ export async function StudentGrid({ students, hrefFor, badgeFor }: Props) {
 
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      {students.map((s) => {
+      {students.map((s, i) => {
         const badge = badgeFor?.(s);
         return (
           <li key={s.id}>
             <Link
               href={hrefFor(s)}
-              className="card flex h-full flex-col items-center gap-2 py-5 text-center transition hover:ring-brand-200 active:scale-[0.98]"
+              className="card relative flex h-full flex-col items-center gap-2 py-5 text-center transition hover:ring-brand-200 active:scale-[0.98]"
             >
+              {numbered && (
+                <span className="absolute left-3 top-3 text-sm font-bold text-slate-400">{i + 1}.</span>
+              )}
               <Avatar firstName={s.first_name} lastName={s.last_name} photoUrl={s.photo_url} />
               <span className="font-semibold leading-tight">
                 {s.first_name}

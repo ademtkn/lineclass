@@ -49,7 +49,7 @@ const { data: classes, error: cErr } = await db
       { name: "5-A", class_teacher_id: ids["aisel@lineclass.test"] },
       { name: "6-B", class_teacher_id: null },
     ],
-    { onConflict: "name" },
+    { onConflict: "class_teacher_id,name" },
   )
   .select();
 if (cErr) throw cErr;

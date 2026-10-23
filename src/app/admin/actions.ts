@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -7,20 +8,16 @@ import { requireRole } from "@/lib/auth";
 import { BRANCH_NAMES, type SubjectNames } from "@/lib/i18n/branches";
 import { LOCALES } from "@/lib/i18n/locales";
 import { getT } from "@/lib/i18n/server";
+import { ownedTeacherIds } from "@/lib/teachers";
+import { BRANCHES } from "@/lib/i18n/branches";
+import { MAX_UPLOAD_BYTES, removePhotos, shrinkPhoto } from "@/lib/photo";
 import type { Role } from "@/lib/types";
 
 export type FormState = { error?: string; ok?: string };
 
 const ROLES: Role[] = ["super_admin", "class_teacher", "branch_teacher"];
-// Uzantı istemcinin dosya adından değil türden belirlenir (bucket da aynı listeyi zorlar)
-const PHOTO_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/heic": "heic",
-  "image/heif": "heif",
-  "image/gif": "gif",
-};
+// Yalnızca bu görsel türleri kabul edilir; kaydedilen dosya her zaman küçültülmüş WebP'dir.
+const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/gif"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
@@ -145,7 +142,11 @@ export async function renameClass(_prev: FormState, fd: FormData): Promise<FormS
 export async function deleteClass(fd: FormData) {
   await requireRole("class_teacher");
   const supabase = await createClient();
-  await supabase.from("classes").delete().eq("id", str(fd, "class_id"));
+  const classId = str(fd, "class_id");
+  // Sınıf silinince öğrencileri de silinir: fotoğraf dosyaları sunucuda kalmasın
+  const { data: photos } = await supabase.from("students").select("photo_url").eq("class_id", classId);
+  const { data: gone } = await supabase.from("classes").delete().eq("id", classId).select("id");
+  if (gone?.length) await removePhotos((photos ?? []).map((p) => p.photo_url));
   revalidatePath("/admin", "layout");
   redirect("/admin");
 }
@@ -155,13 +156,20 @@ export async function deleteClass(fd: FormData) {
 async function uploadPhoto(classId: string, photo: FormDataEntryValue | null) {
   const { t } = await getT();
   if (!(photo instanceof File) || photo.size === 0) return { url: null };
-  const ext = PHOTO_TYPES[photo.type];
-  if (!ext) return { error: t("student.errPhotoType") };
-  if (photo.size > 5 * 1024 * 1024) return { error: t("student.errPhotoSize") };
+  if (!PHOTO_TYPES.has(photo.type)) return { error: t("student.errPhotoType") };
+  if (photo.size > MAX_UPLOAD_BYTES) return { error: t("student.errPhotoSize") };
+
+  let data: Buffer;
+  try {
+    data = await shrinkPhoto(photo);
+  } catch {
+    // Çözülemeyen dosya (ör. desteklenmeyen HEIC türü)
+    return { error: t("student.errPhotoRead") };
+  }
 
   const supabase = await createClient();
-  const path = `${classId}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("student-photos").upload(path, photo, { contentType: photo.type });
+  const path = `${classId}/${crypto.randomUUID()}.webp`;
+  const { error } = await supabase.storage.from("student-photos").upload(path, data, { contentType: "image/webp" });
   if (error) return { error: t("student.errUpload") };
   return { url: supabase.storage.from("student-photos").getPublicUrl(path).data.publicUrl };
 }
@@ -186,7 +194,10 @@ export async function addStudent(_prev: FormState, fd: FormData): Promise<FormSt
     short_info: shortInfo,
     photo_url: photo.url,
   });
-  if (error) return { error: t("users.errGeneric") };
+  if (error) {
+    await removePhotos([photo.url]);
+    return { error: t("users.errGeneric") };
+  }
 
   revalidatePath(`/admin/classes/${classId}`);
   revalidatePath("/admin");
@@ -207,6 +218,12 @@ export async function updateStudent(_prev: FormState, fd: FormData): Promise<For
   if ("error" in photo) return { error: photo.error };
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("students")
+    .select("photo_url")
+    .eq("id", studentId)
+    .eq("class_id", classId)
+    .maybeSingle();
   const { error } = await supabase
     .from("students")
     .update({
@@ -217,7 +234,11 @@ export async function updateStudent(_prev: FormState, fd: FormData): Promise<For
     })
     .eq("id", studentId)
     .eq("class_id", classId);
-  if (error) return { error: t("users.errGeneric") };
+  if (error) {
+    await removePhotos([photo.url]); // kaydedilemediyse yeni dosya sunucuda yetim kalmasın
+    return { error: t("users.errGeneric") };
+  }
+  if (photo.url) await removePhotos([before?.photo_url]); // eski fotoğraf sunucudan silinir
 
   revalidatePath(`/admin/students/${studentId}`);
   revalidatePath(`/admin/classes/${classId}`);
@@ -225,14 +246,41 @@ export async function updateStudent(_prev: FormState, fd: FormData): Promise<For
   return { ok: t("student.updated", { name: `${firstName} ${lastName}` }) };
 }
 
+/** Öğrenciyi kalıcı siler: kaydı, notları (cascade) ve sunucudaki fotoğraf dosyası. */
 export async function deleteStudent(fd: FormData) {
   await requireRole("class_teacher");
   const classId = str(fd, "class_id");
+  const studentId = str(fd, "student_id");
   const supabase = await createClient();
-  await supabase.from("students").delete().eq("id", str(fd, "student_id")).eq("class_id", classId);
+  // RLS: yalnızca kendi sınıfının öğrencisi silinebilir; silinen satırın fotoğraf yolu geri döner
+  const { data: gone } = await supabase
+    .from("students")
+    .delete()
+    .eq("id", studentId)
+    .eq("class_id", classId)
+    .select("photo_url");
+  await removePhotos((gone ?? []).map((s) => s.photo_url));
   revalidatePath(`/admin/classes/${classId}`);
   revalidatePath("/admin");
   if (str(fd, "redirect")) redirect(`/admin?class=${classId}`);
+}
+
+/** Pasif öğrenci listelerden kalkar ama silinmez; istenirse tekrar aktif edilir. */
+export async function setStudentActive(fd: FormData) {
+  await requireRole("class_teacher");
+  const classId = str(fd, "class_id");
+  const studentId = str(fd, "student_id");
+  const supabase = await createClient();
+  await supabase
+    .from("students")
+    .update({ active: str(fd, "active") === "1" })
+    .eq("id", studentId)
+    .eq("class_id", classId);
+  revalidatePath(`/admin/classes/${classId}`);
+  revalidatePath(`/admin/students/${studentId}`);
+  revalidatePath("/admin");
+  revalidatePath("/teacher", "layout");
+  if (str(fd, "redirect")) redirect(`/admin/classes/${classId}`);
 }
 
 // ================================================================ Öğretmen erişimi & davet linki
@@ -345,4 +393,119 @@ export async function deleteSubject(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("class_subjects").delete().eq("id", str(fd, "subject_id")).eq("class_id", classId);
   revalidatePath(`/admin/classes/${classId}`);
+}
+
+// ================================================================ Öğretmen hesabı (sınıf öğretmeni, yalnızca kendi öğretmenleri)
+
+/** Hedef, bu sınıf öğretmeninin sınıflarına giren bir branş öğretmeni mi (ve başkasının sınıfında yok mu)? */
+async function ownedBranchTeacher(meId: string, teacherId: string) {
+  if (!teacherId) return false;
+  const { data } = await createAdminClient().from("profiles").select("role").eq("id", teacherId).maybeSingle();
+  if (data?.role !== "branch_teacher") return false;
+  return (await ownedTeacherIds(meId, [teacherId])).has(teacherId);
+}
+
+export async function updateTeacher(_prev: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireRole("class_teacher");
+  const { t } = await getT();
+  const teacherId = str(fd, "teacher_id");
+  const fullName = str(fd, "full_name").replace(/\s+/g, " ");
+  const branch = str(fd, "branch") || null;
+  if (fullName.length < 3) return { error: t("join.errName") };
+  if (branch && !BRANCHES.includes(branch)) {
+    // Özel dersler: branş, kendi sınıflarındaki bir dersin adı olabilir
+    const { data: mine } = await (await createClient()).from("class_subjects").select("id").eq("subject", branch).limit(1);
+    if (!mine?.length) return { error: t("join.errBranch") };
+  }
+  if (!(await ownedBranchTeacher(me.id, teacherId))) return { error: t("teacherEdit.errNotAllowed") };
+
+  const { error } = await createAdminClient()
+    .from("profiles")
+    .update({ full_name: fullName, branch })
+    .eq("id", teacherId);
+  if (error) return { error: t("users.errGeneric") };
+
+  revalidatePath("/admin", "layout");
+  return { ok: t("common.saved") };
+}
+
+/** Öğretmen hesabını tamamen siler (yazdığı notlar dahil). Yalnızca kendi sınıflarındaki öğretmenler. */
+export async function deleteTeacher(fd: FormData) {
+  const me = await requireRole("class_teacher");
+  const teacherId = str(fd, "teacher_id");
+  if (!(await ownedBranchTeacher(me.id, teacherId))) return;
+  await createAdminClient().auth.admin.deleteUser(teacherId);
+  revalidatePath("/admin", "layout");
+}
+
+// ================================================================ Sınıf öğretmeni başvuruları (yalnızca super admin)
+
+export type ApprovalState = FormState & { email?: string; password?: string; className?: string };
+
+// Karıştırılabilen karakterler (0/O, 1/l/I) yok: şifre telefonla/WhatsApp'la iletilebilsin
+const PASSWORD_ALPHABET = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function generatePassword(length = 10) {
+  return Array.from(randomBytes(length), (b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join("");
+}
+
+export async function approveApplication(_prev: ApprovalState, fd: FormData): Promise<ApprovalState> {
+  await requireRole("super_admin");
+  const { t } = await getT();
+  const admin = createAdminClient();
+  const { data: app } = await admin
+    .from("teacher_applications")
+    .select("*")
+    .eq("id", str(fd, "application_id"))
+    .eq("status", "pending")
+    .maybeSingle();
+  if (!app) return { error: t("applications.errGone") };
+
+  const password = generatePassword();
+  const { data: created, error } = await admin.auth.admin.createUser({
+    email: app.email.toLowerCase(),
+    password,
+    email_confirm: true,
+    app_metadata: { role: "class_teacher" },
+    user_metadata: { full_name: app.full_name, branch: null },
+  });
+  if (error || !created.user) {
+    return { error: error?.code === "email_exists" ? t("users.errEmailTaken") : t("users.errGeneric") };
+  }
+
+  // Başvurudaki sınıfı hazırla: öğretmen ilk girişte boş bir sınıf formuyla karşılaşmasın
+  const className = String(app.class_name).toUpperCase().replace(/\s+/g, " ");
+  const { error: classError } = await admin
+    .from("classes")
+    .insert({ name: className, class_teacher_id: created.user.id });
+  if (classError) console.error("approveApplication: class insert failed", classError);
+
+  await admin
+    .from("teacher_applications")
+    .update({ status: "approved", user_id: created.user.id, reviewed_at: new Date().toISOString() })
+    .eq("id", app.id);
+
+  revalidatePath("/admin/applications");
+  revalidatePath("/admin/users");
+  return { ok: t("applications.approved"), email: app.email.toLowerCase(), password, className: classError ? undefined : className };
+}
+
+export async function rejectApplication(fd: FormData) {
+  await requireRole("super_admin");
+  await createAdminClient()
+    .from("teacher_applications")
+    .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+    .eq("id", str(fd, "application_id"))
+    .eq("status", "pending");
+  revalidatePath("/admin/applications");
+  revalidatePath("/admin/users");
+}
+
+export async function deleteApplication(fd: FormData) {
+  await requireRole("super_admin");
+  await createAdminClient()
+    .from("teacher_applications")
+    .delete()
+    .eq("id", str(fd, "application_id"))
+    .neq("status", "pending");
+  revalidatePath("/admin/applications");
 }

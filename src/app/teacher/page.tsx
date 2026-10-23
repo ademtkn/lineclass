@@ -26,7 +26,9 @@ export default async function TeacherDashboard() {
   const supabase = await createClient();
   // RLS sayesinde sadece öğretmenin atandığı (veya sınıf öğretmeni olduğu) sınıflar döner.
   const [{ data: classes }, { data: mySubjects }] = await Promise.all([
-    supabase.from("classes").select("id, name, class_teacher_id, students(count)").order("name"),
+    supabase.from("classes").select("id, name, class_teacher_id, students(count)")
+      .eq("students.active", true) // pasif öğrenciler mevcuda dahil değil
+      .order("name"),
     supabase.from("class_subjects").select("class_id, subject, names").eq("teacher_id", profile.id),
   ]);
   const subjectsIn = (classId: string) =>

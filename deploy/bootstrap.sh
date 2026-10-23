@@ -91,8 +91,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=$(read_env "$SB/.env" ANON_KEY)
 SUPABASE_SERVICE_ROLE_KEY=$(read_env "$SB/.env" SERVICE_ROLE_KEY)
 NEXT_PUBLIC_TIME_ZONE=Asia/Bishkek
 # Gerçek çeviri için birini doldurup: bash /opt/lineclass/app/deploy/update.sh
-OPENAI_API_KEY=
 GEMINI_API_KEY=
+DEEPSEEK_API_KEY=
+OPENAI_API_KEY=
 EOF
 fi
 

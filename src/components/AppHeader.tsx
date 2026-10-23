@@ -3,6 +3,7 @@ import { logout } from "@/app/login/actions";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { branchLabel } from "@/lib/i18n/branches";
 import { getT } from "@/lib/i18n/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
 type Props = {
@@ -14,10 +15,24 @@ type Props = {
 /** Mobilde yapışkan üst bar: geri, başlık, rol bazlı kısayollar, dil seçici ve çıkış. */
 export async function AppHeader({ profile, title, backHref }: Props) {
   const { t, locale } = await getT();
-  const links =
+  // Yönetici: bekleyen başvuru sayısı menüde rozet olarak görünür
+  let pendingApplications = 0;
+  if (profile.role === "super_admin") {
+    const { count } = await createAdminClient()
+      .from("teacher_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    pendingApplications = count ?? 0;
+  }
+  const links: { href: string; label: string; badge?: number }[] =
     profile.role === "super_admin"
       ? [
           { href: "/admin/users", label: t("nav.users") },
+          {
+            href: "/admin/applications",
+            label: t("nav.applications"),
+            badge: pendingApplications,
+          },
           { href: "/profile", label: t("nav.profile") },
         ]
       : profile.role === "class_teacher"
@@ -62,6 +77,9 @@ export async function AppHeader({ profile, title, backHref }: Props) {
             className="shrink-0 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700"
           >
             {l.label}
+            {(l.badge ?? 0) > 0 && (
+              <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white">{l.badge}</span>
+            )}
           </Link>
         ))}
       </nav>

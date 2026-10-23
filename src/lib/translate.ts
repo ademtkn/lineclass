@@ -1,14 +1,20 @@
 import "server-only";
 import { LANGS, type Lang } from "@/lib/types";
 
-type Provider = "openai" | "gemini" | "mock";
+type Provider = "gemini" | "deepseek" | "openai" | "mock";
 
-function pickProvider(): Provider {
+const KEYS: Record<Exclude<Provider, "mock">, string> = {
+  gemini: "GEMINI_API_KEY",
+  deepseek: "DEEPSEEK_API_KEY",
+  openai: "OPENAI_API_KEY",
+};
+
+/** Sıra: önce ücretsiz katmanı olan Gemini, sonra ucuz DeepSeek, sonra OpenAI. TRANSLATE_PROVIDER ile zorlanabilir. */
+function providers(): Provider[] {
   const forced = process.env.TRANSLATE_PROVIDER as Provider | undefined;
-  if (forced) return forced;
-  if (process.env.OPENAI_API_KEY) return "openai";
-  if (process.env.GEMINI_API_KEY) return "gemini";
-  return "mock";
+  if (forced) return [forced];
+  const configured = (Object.keys(KEYS) as (keyof typeof KEYS)[]).filter((p) => process.env[KEYS[p]]);
+  return configured.length ? configured : ["mock"];
 }
 
 function systemPrompt(lang: Lang) {
@@ -21,15 +27,16 @@ function systemPrompt(lang: Lang) {
   ].join(" ");
 }
 
-async function viaOpenAI(text: string, lang: Lang) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+/** OpenAI uyumlu sohbet API'si (OpenAI ve DeepSeek aynı biçimi kullanır). */
+async function viaChatApi(name: string, url: string, key: string, model: string, text: string, lang: Lang) {
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model,
       temperature: 0.2,
       messages: [
         { role: "system", content: systemPrompt(lang) },
@@ -37,13 +44,13 @@ async function viaOpenAI(text: string, lang: Lang) {
       ],
     }),
   });
-  if (!res.ok) throw new Error(`OpenAI hatası (${res.status})`);
+  if (!res.ok) throw new Error(`${name} hatası (${res.status})`);
   const data = await res.json();
   return String(data.choices?.[0]?.message?.content ?? "").trim();
 }
 
 async function viaGemini(text: string, lang: Lang) {
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -69,10 +76,27 @@ async function viaMock(text: string, lang: Lang) {
   return `[${lang.toUpperCase()} · demo çeviri] ${text}`;
 }
 
+const run: Record<Provider, (text: string, lang: Lang) => Promise<string>> = {
+  gemini: viaGemini,
+  deepseek: (t, l) =>
+    viaChatApi("DeepSeek", "https://api.deepseek.com/chat/completions", process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || "deepseek-chat", t, l),
+  openai: (t, l) =>
+    viaChatApi("OpenAI", "https://api.openai.com/v1/chat/completions", process.env.OPENAI_API_KEY!, process.env.OPENAI_MODEL || "gpt-4o-mini", t, l),
+  mock: viaMock,
+};
+
+/** Sağlayıcıları sırayla dener: biri hata verirse (ör. ücretsiz kota doldu) sıradakine geçer. */
 export async function translateText(text: string, lang: Lang): Promise<{ text: string; provider: Provider }> {
-  const provider = pickProvider();
-  const fn = provider === "openai" ? viaOpenAI : provider === "gemini" ? viaGemini : viaMock;
-  const out = await fn(text, lang);
-  if (!out) throw new Error("Boş çeviri döndü");
-  return { text: out, provider };
+  let lastError: unknown;
+  for (const provider of providers()) {
+    try {
+      const out = await run[provider](text, lang);
+      if (out) return { text: out, provider };
+      lastError = new Error(`${provider}: boş çeviri döndü`);
+    } catch (e) {
+      lastError = e;
+      console.error(`translate via ${provider} failed`, e);
+    }
+  }
+  throw lastError ?? new Error("Çeviri sağlayıcısı yok");
 }

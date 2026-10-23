@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { JOIN_CODE_RE } from "@/lib/join-code";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/apply"];
 
 /** Oturum çerezini yeniler; giriş yapmamış kullanıcıyı /login'e yollar. */
 export async function updateSession(request: NextRequest) {

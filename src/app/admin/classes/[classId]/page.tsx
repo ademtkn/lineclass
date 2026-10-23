@@ -5,10 +5,12 @@ import { ActionForm } from "@/components/ActionForm";
 import { AppHeader } from "@/components/AppHeader";
 import { Avatar } from "@/components/Avatar";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { PhotoInput } from "@/components/PhotoInput";
 import { InviteLinkCard } from "@/components/InviteLinkCard";
 import { SubjectAssignments } from "@/components/SubjectAssignments";
 import { requireRole } from "@/lib/auth";
-import { branchLabel, subjectLabel, type SubjectNames } from "@/lib/i18n/branches";
+import { ownedTeacherIds } from "@/lib/teachers";
+import { BRANCHES, branchLabel, subjectLabel, type SubjectNames } from "@/lib/i18n/branches";
 import { getT } from "@/lib/i18n/server";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
@@ -16,6 +18,10 @@ import {
   addStudent,
   assignTeacher,
   deleteClass,
+  deleteStudent,
+  deleteTeacher,
+  setStudentActive,
+  updateTeacher,
   regenerateJoinToken,
   renameClass,
   unassignTeacher,
@@ -38,9 +44,10 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
   const [{ data: students }, { data: access }, { data: teachers }, { data: subjects }] = await Promise.all([
     supabase
       .from("students")
-      .select("id, first_name, last_name, photo_url")
+      .select("id, first_name, last_name, photo_url, active")
       .eq("class_id", classId)
-      .order("first_name"),
+      .order("first_name")
+      .order("last_name"),
     supabase.from("teacher_class_access").select("teacher_id").eq("class_id", classId),
     supabase
       .from("profiles")
@@ -63,6 +70,10 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
   const origin = process.env.NEXT_PUBLIC_SITE_URL || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
   const inviteUrl = `${origin}/${cls.join_token}`;
   const assigned = allTeachers.filter((x) => assignedIds.has(x.id));
+  const activeStudents = (students ?? []).filter((s) => s.active);
+  const passiveStudents = (students ?? []).filter((s) => !s.active);
+  // Hesabı düzenlenebilir/silinebilir olanlar: yalnızca bu sınıf öğretmeninin sınıflarına giren branş öğretmenleri
+  const owned = await ownedTeacherIds(profile.id, assigned.map((x) => x.id));
   const available = allTeachers.filter((x) => !assignedIds.has(x.id));
   const subjectsOf = (teacherId: string) =>
     subjectRows.filter((x) => x.teacher_id === teacherId).map((x) => subjectLabel(x.subject, x.names, locale));
@@ -101,23 +112,57 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
             {assigned.map((x) => {
               const lessons = subjectsOf(x.id);
               return (
-                <li key={x.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{teacherName(x)}</p>
-                    <p className="text-xs text-slate-500">
-                      {lessons.length
-                        ? t("manage.lessons", { list: lessons.join(", ") })
-                        : `${x.branch ? branchLabel(x.branch, locale) : t("manage.noBranch")} · ${t("manage.noLesson")}`}
-                      {x.via_link && ` · ${t("manage.viaLink")}`}
-                    </p>
+                <li key={x.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{teacherName(x)}</p>
+                      <p className="text-xs text-slate-500">
+                        {lessons.length
+                          ? t("manage.lessons", { list: lessons.join(", ") })
+                          : `${x.branch ? branchLabel(x.branch, locale) : t("manage.noBranch")} · ${t("manage.noLesson")}`}
+                        {x.via_link && ` · ${t("manage.viaLink")}`}
+                      </p>
+                    </div>
+                    <form action={unassignTeacher}>
+                      <input type="hidden" name="class_id" value={classId} />
+                      <input type="hidden" name="teacher_id" value={x.id} />
+                      <button className="min-h-10 rounded-xl px-3 text-sm text-red-600 hover:bg-red-50">
+                        {t("common.remove")}
+                      </button>
+                    </form>
                   </div>
-                  <form action={unassignTeacher}>
-                    <input type="hidden" name="class_id" value={classId} />
-                    <input type="hidden" name="teacher_id" value={x.id} />
-                    <button className="min-h-10 rounded-xl px-3 text-sm text-red-600 hover:bg-red-50">
-                      {t("common.remove")}
-                    </button>
-                  </form>
+                  {x.role === "branch_teacher" && (
+                    <details className="mt-1">
+                      <summary className="inline-flex min-h-8 cursor-pointer list-none items-center text-xs text-brand-700 underline">
+                        ✎ {t("teacherEdit.edit")}
+                      </summary>
+                      {owned.has(x.id) ? (
+                        <div className="mt-2 space-y-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                          <ActionForm action={updateTeacher} submitLabel={t("common.save")} resetOnSuccess={false}>
+                            <input type="hidden" name="teacher_id" value={x.id} />
+                            <input name="full_name" defaultValue={x.full_name} required minLength={3} aria-label={t("users.fullName")} className="input" />
+                            <select name="branch" defaultValue={x.branch ?? ""} aria-label={t("users.branch")} className="input">
+                              <option value="">—</option>
+                              {[...new Set([...BRANCHES, ...(x.branch && !BRANCHES.includes(x.branch) ? [x.branch] : [])])].map((b) => (
+                                <option key={b} value={b}>{branchLabel(b, locale)}</option>
+                              ))}
+                            </select>
+                          </ActionForm>
+                          <form action={deleteTeacher} className="border-t border-slate-200 pt-2 text-center">
+                            <input type="hidden" name="teacher_id" value={x.id} />
+                            <ConfirmButton
+                              message={t("teacherEdit.deleteConfirm", { name: teacherName(x) })}
+                              className="min-h-10 rounded-xl px-4 text-sm font-medium text-red-600 hover:bg-red-50"
+                            >
+                              {t("teacherEdit.delete")}
+                            </ConfirmButton>
+                          </form>
+                        </div>
+                      ) : (
+                        <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{t("teacherEdit.shared")}</p>
+                      )}
+                    </details>
+                  )}
                 </li>
               );
             })}
@@ -126,7 +171,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
 
         {/* ------------------------------------------------ Öğrenciler + sınıf ayarları */}
         <section className="min-w-0 space-y-3">
-          <h2 className="text-lg font-bold">{t("manage.students", { n: students?.length ?? 0 })}</h2>
+          <h2 className="text-lg font-bold">{t("manage.students", { n: activeStudents.length })}</h2>
 
           <div className="card">
             <ActionForm action={addStudent} submitLabel={t("manage.addStudent")}>
@@ -145,33 +190,74 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
               />
               <label className="block">
                 <span className="label">{t("manage.photo")}</span>
-                <input
-                  type="file"
-                  name="photo"
-                  accept="image/*"
-                  capture="environment"
-                  className="block w-full text-sm file:mr-3 file:min-h-10 file:rounded-xl file:border-0 file:bg-brand-50 file:px-4 file:font-semibold file:text-brand-700"
-                />
+                <PhotoInput />
               </label>
             </ActionForm>
           </div>
 
           <ul className="card divide-y divide-slate-100 p-0">
-            {students?.map((s) => (
-              <li key={s.id}>
+            {activeStudents.length === 0 && <li className="p-4 text-sm text-slate-500">{t("roster.empty")}</li>}
+            {activeStudents.map((s, i) => (
+              <li key={s.id} className="flex items-center">
                 <Link
                   href={`/admin/students/${s.id}?edit=1`}
-                  className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-slate-50"
+                  className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2.5 pl-4 hover:bg-slate-50"
                 >
+                  <span className="w-7 shrink-0 text-right text-sm font-bold text-slate-400">{i + 1}.</span>
                   <Avatar firstName={s.first_name} lastName={s.last_name} photoUrl={s.photo_url} size="md" />
                   <span className="flex-1 truncate font-medium">
                     {s.first_name} {s.last_name}
                   </span>
-                  <span className="text-sm text-brand-700">{t("common.edit")} ›</span>
                 </Link>
+                <form action={setStudentActive} className="shrink-0 pr-3">
+                  <input type="hidden" name="class_id" value={classId} />
+                  <input type="hidden" name="student_id" value={s.id} />
+                  <input type="hidden" name="active" value="0" />
+                  <button className="min-h-10 rounded-xl px-3 text-xs font-medium text-slate-500 hover:bg-slate-100">
+                    {t("student.makePassive")}
+                  </button>
+                </form>
               </li>
             ))}
           </ul>
+
+          {passiveStudents.length > 0 && (
+            <details className="card p-0">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 font-semibold text-slate-600">
+                {t("student.passiveTitle", { n: passiveStudents.length })}
+                <span className="text-slate-400">▾</span>
+              </summary>
+              <p className="px-4 pb-2 text-xs text-slate-500">{t("student.passiveHint")}</p>
+              <ul className="divide-y divide-slate-100 border-t border-slate-100">
+                {passiveStudents.map((s) => (
+                  <li key={s.id} className="flex items-center gap-2 px-4 py-2.5">
+                    <Avatar firstName={s.first_name} lastName={s.last_name} photoUrl={s.photo_url} size="md" />
+                    <span className="min-w-0 flex-1 truncate font-medium text-slate-500">
+                      {s.first_name} {s.last_name}
+                    </span>
+                    <form action={setStudentActive}>
+                      <input type="hidden" name="class_id" value={classId} />
+                      <input type="hidden" name="student_id" value={s.id} />
+                      <input type="hidden" name="active" value="1" />
+                      <button className="min-h-10 rounded-xl bg-emerald-50 px-3 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+                        {t("student.makeActive")}
+                      </button>
+                    </form>
+                    <form action={deleteStudent}>
+                      <input type="hidden" name="class_id" value={classId} />
+                      <input type="hidden" name="student_id" value={s.id} />
+                      <ConfirmButton
+                        message={t("manage.deleteStudentConfirm", { name: `${s.first_name} ${s.last_name}` })}
+                        className="min-h-10 rounded-xl px-3 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        {t("common.delete")}
+                      </ConfirmButton>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
 
           <h2 className="pt-2 text-lg font-bold">{t("manage.classSettings")}</h2>
           <div className="card space-y-4">

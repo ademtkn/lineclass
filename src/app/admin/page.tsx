@@ -36,7 +36,9 @@ export default async function ClassTeacherDashboard(props: PageProps<"/admin">) 
       .from("students")
       .select("id, first_name, last_name, class_id, photo_url, short_info")
       .eq("class_id", selected.id)
-      .order("first_name");
+      .eq("active", true)
+      .order("first_name")
+      .order("last_name");
     students = data ?? [];
 
     if (students.length) {
@@ -102,7 +104,10 @@ export default async function ClassTeacherDashboard(props: PageProps<"/admin">) 
           selected && (
             <>
               <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm text-slate-500">{t("classAdmin.studentsHint", { n: students.length })}</p>
+                <div>
+                  <p className="text-lg font-bold">{t("classAdmin.enrolled", { n: students.length })}</p>
+                  <p className="text-xs text-slate-500">{t("classAdmin.tapHint")}</p>
+                </div>
                 <Link
                   href={`/admin/classes/${selected.id}`}
                   className="btn-ghost min-h-10 shrink-0 whitespace-nowrap px-4 text-sm"
@@ -113,6 +118,7 @@ export default async function ClassTeacherDashboard(props: PageProps<"/admin">) 
 
               <StudentGrid
                 students={students}
+                numbered
                 hrefFor={(s) => `/admin/students/${s.id}`}
                 badgeFor={(s) => {
                   const n = noteCounts.get(s.id) ?? 0;

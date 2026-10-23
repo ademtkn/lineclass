@@ -22,7 +22,7 @@ Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
 ## Kurulum (supabase.com bulut projesi)
 
 1. [supabase.com](https://supabase.com)'da bir proje açın.
-2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001` … `0007`) yapıştırıp çalıştırın.
+2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001` … `0009`) yapıştırıp çalıştırın.
 3. Ortam değişkenleri:
    ```bash
    cp .env.example .env.local   # değerleri Supabase → Project Settings → API'den doldurun
@@ -50,6 +50,13 @@ Uygulama ve veritabanı (self-hosted Supabase) tek bir DigitalOcean sunucusunda 
 | **Super Admin** | `/admin`, `/admin/manage` | Kullanıcı oluşturma + rol, sınıf oluşturma + sınıf öğretmeni atama, tüm öğrenci/not/atama yönetimi, tüm notları görme ve silme |
 | **Sınıf Öğretmeni** | `/admin` (Sınıfım), `/teacher` (Derslerim) | Kendi sınıfının öğrencilerini ve derse giren öğretmen atamalarını yönetir; sınıfındaki öğrencilere yazılan **tüm** notları görür; derse girdiği sınıflara not yazar |
 | **Branş Öğretmeni** | `/join/<link>` → `/teacher` | **Şifre yok:** sınıf öğretmeninin gönderdiği sınıf linkini açar, adına dokunur ya da ad + branş seçer; atandığı sınıfları → fotoğraflı öğrenci kartlarını görür; not ekler (yazılı veya 🎤 sesle), yalnızca **kendi** notlarını görür |
+
+### Başvuru, öğrenci listesi ve fotoğraflar
+
+- **Sınıf öğretmeni başvurusu:** `/apply` (girişsiz) → okul, sınıf, adres, iletişim. Yönetici `/admin/applications`'da inceler; **Onayla** hesabı açar, başvurudaki sınıfı oluşturur ve tek seferlik geçici şifreyi gösterir (telefon/WhatsApp ile iletilir).
+- **Öğrenciler:** liste numaralıdır (1., 2., …), sınıf mevcudu gösterilir. **Pasif** öğrenci listelerden ve mevcuttan çıkar ama silinmez (Yönetim → Pasif öğrenciler → Aktif yap). **Sil** kaydı, notları ve sunucudaki fotoğraf dosyasını kalıcı siler.
+- **Fotoğraflar** tarayıcıda, sonra sunucuda küçültülür (480 px WebP, ~40 KB).
+- Sınıf öğretmeni, yalnızca kendi sınıflarındaki branş öğretmenlerinin adını/branşını düzeltebilir ve hesabını silebilir; dersleri düzeltir/siler.
 
 ### Derslere öğretmen atama
 
@@ -108,7 +115,7 @@ src/
 
 ## Çeviri
 
-`TRANSLATE_PROVIDER` boşsa: `OPENAI_API_KEY` varsa OpenAI (`gpt-4o-mini`), yoksa `GEMINI_API_KEY` varsa Gemini, ikisi de yoksa **mock** (`[EN · demo çeviri] …`). Gerçek çeviriler `note_translations` tablosunda saklanır; aynı not aynı dile ikinci kez ücretlendirilmez.
+Anahtarı tanımlı sağlayıcılar sırayla denenir: **Gemini** (ücretsiz katman, [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) → **DeepSeek** → **OpenAI**; biri hata verirse (ör. kota) sıradakine geçilir. Hiçbiri yoksa **mock** (`[EN · demo çeviri] …`). `TRANSLATE_PROVIDER` ile biri zorlanabilir. Gerçek çeviriler `note_translations` tablosunda saklanır; aynı not aynı dile ikinci kez çevrilmez.
 
 ## Güvenlik
 

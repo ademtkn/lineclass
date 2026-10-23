@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ActionForm";
 import { AppHeader } from "@/components/AppHeader";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { PhotoInput } from "@/components/PhotoInput";
 import { NoteList } from "@/components/NoteList";
 import { StudentHeader } from "@/components/StudentHeader";
 import { requireRole } from "@/lib/auth";
@@ -9,7 +10,7 @@ import { getT } from "@/lib/i18n/server";
 import { getStudentNotes, getStudentWithClass } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { STATUS_META, type NoteStatus } from "@/lib/types";
-import { deleteStudent, updateStudent } from "../../actions";
+import { deleteStudent, setStudentActive, updateStudent } from "../../actions";
 
 /** Sınıf öğretmeni: öğrencinin tüm notları + bilgilerini/fotoğrafını düzenleme. */
 export default async function AdminStudentPage(props: PageProps<"/admin/students/[studentId]">) {
@@ -36,6 +37,11 @@ export default async function AdminStudentPage(props: PageProps<"/admin/students
     <>
       <AppHeader profile={profile} title={fullName} backHref={`/admin?class=${student.class_id}`} />
       <main className="mx-auto max-w-2xl space-y-5 px-4 py-5">
+        {!student.active && (
+          <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 ring-1 ring-amber-200">
+            {t("student.passiveBanner")}
+          </p>
+        )}
         <StudentHeader student={student} className={student.class?.name} />
 
         <details open={edit === "1"} className="card">
@@ -70,16 +76,20 @@ export default async function AdminStudentPage(props: PageProps<"/admin/students
               </div>
               <label className="block">
                 <span className="label">{t("manage.changePhoto")}</span>
-                <input
-                  type="file"
-                  name="photo"
-                  accept="image/*"
-                  capture="environment"
-                  className="block w-full text-sm file:mr-3 file:min-h-10 file:rounded-xl file:border-0 file:bg-brand-50 file:px-4 file:font-semibold file:text-brand-700"
-                />
+                <PhotoInput />
               </label>
             </ActionForm>
-            <form action={deleteStudent} className="border-t border-slate-100 pt-3 text-center">
+            <form action={setStudentActive} className="border-t border-slate-100 pt-3">
+              <input type="hidden" name="student_id" value={student.id} />
+              <input type="hidden" name="class_id" value={student.class_id} />
+              <input type="hidden" name="active" value={student.active ? "0" : "1"} />
+              <input type="hidden" name="redirect" value="1" />
+              <button className="btn-ghost w-full">
+                {student.active ? t("student.makePassive") : t("student.makeActive")}
+              </button>
+              <p className="mt-1 text-center text-xs text-slate-500">{t("student.passiveHint")}</p>
+            </form>
+            <form action={deleteStudent} className="pt-1 text-center">
               <input type="hidden" name="student_id" value={student.id} />
               <input type="hidden" name="class_id" value={student.class_id} />
               <input type="hidden" name="redirect" value="1" />
