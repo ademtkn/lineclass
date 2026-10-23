@@ -49,26 +49,37 @@ async function viaChatApi(name: string, url: string, key: string, model: string,
   return String(data.choices?.[0]?.message?.content ?? "").trim();
 }
 
-async function viaGemini(text: string, lang: Lang) {
-  const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": process.env.GEMINI_API_KEY!,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt(lang) }] },
-        contents: [{ role: "user", parts: [{ text }] }],
-        generationConfig: { temperature: 0.2 },
-      }),
-    },
-  );
-  if (!res.ok) throw new Error(`Gemini hatası (${res.status})`);
+/** Ücretsiz katmanda modeller sık "yoğun talep" (503) verir: sırayla denenir. Lite modeller daha az yoğun. */
+const GEMINI_MODELS = ["gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.5-flash"];
+
+async function geminiOnce(model: string, text: string, lang: Lang) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt(lang) }] },
+      contents: [{ role: "user", parts: [{ text }] }],
+      generationConfig: { temperature: 0.2 },
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`Gemini ${model} hatası (${res.status})`);
   const data = await res.json();
   return String(data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
+}
+
+async function viaGemini(text: string, lang: Lang) {
+  const models = process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL, ...GEMINI_MODELS] : GEMINI_MODELS;
+  let lastError: unknown;
+  for (const model of models) {
+    try {
+      const out = await geminiOnce(model, text, lang);
+      if (out) return out;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError ?? new Error("Gemini boş çeviri döndü");
 }
 
 /** API anahtarı yokken arayüzü test etmek için sahte çeviri. */
