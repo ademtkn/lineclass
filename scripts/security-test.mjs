@@ -107,6 +107,32 @@ await test("Branş: sahte çeviri yazamaz (önbellek zehirleme)", async () => {
   await svc.from("notes").delete().eq("id", own);
   return !!r.error;
 });
+await test("Branş: kendi yazdığı notu sonradan değiştiremez/silemez (yalnızca sınıf öğretmeni)", async () => {
+  const own = (await irina.from("notes").insert({ student_id: s5a, teacher_id: irina.uid, note_text: "kilitli not" }).select("id").single()).data.id;
+  const upd = await irina.from("notes").update({ note_text: "değişti" }).eq("id", own).select();
+  const del = await irina.from("notes").delete().eq("id", own).select();
+  const stillThere = (await svc.from("notes").select("note_text").eq("id", own).single()).data;
+  await svc.from("notes").delete().eq("id", own);
+  return denied(upd) && denied(del) && stillThere?.note_text === "kilitli not";
+});
+await test("Sınıf öğr.: sınıfındaki notu düzeltebilir, yazarı/öğrenciyi değiştiremez", async () => {
+  const n = (await svc.from("notes").insert({ student_id: s5a, teacher_id: mehmetId, note_text: "ilk" }).select("id").single()).data.id;
+  const ok = !(await aisel.from("notes").update({ note_text: "düzeltildi" }).eq("id", n).select()).error;
+  const edited = (await svc.from("notes").select("note_text").eq("id", n).single()).data.note_text === "düzeltildi";
+  const author = !!(await aisel.from("notes").update({ teacher_id: aisel.uid }).eq("id", n)).error;
+  await svc.from("notes").delete().eq("id", n);
+  return ok && edited && author;
+});
+await test("Branş: başkasının dersine bağlı not yazamaz", async () => {
+  const foreign = (await svc.from("class_subjects").select("id").eq("class_id", c5a).neq("teacher_id", irina.uid).not("teacher_id", "is", null).limit(1).single()).data?.id;
+  if (!foreign) return false;
+  return !!(await irina.from("notes").insert({ student_id: s5a, teacher_id: irina.uid, note_text: "x", subject_id: foreign })).error;
+});
+await test("Herkes: cihaz kilidi tablosuna ve başvurulara erişemez", async () => {
+  const a = await irina.from("link_claims").select("*").limit(1);
+  const b = await irina.from("teacher_applications").select("*").limit(1);
+  return !!a.error && !!b.error;
+});
 await test("Branş: erişemediği notu çeviri API'siyle okuyamaz", async () =>
   (await fetch(`${APP}/api/translate`, {
     method: "POST",

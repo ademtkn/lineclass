@@ -22,7 +22,7 @@ Veritabanını sıfırlayıp seed'i tekrar yüklemek: `npm run db:reset`
 ## Kurulum (supabase.com bulut projesi)
 
 1. [supabase.com](https://supabase.com)'da bir proje açın.
-2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001` … `0009`) yapıştırıp çalıştırın.
+2. **SQL Editor** → `supabase/migrations/` altındaki dosyaları sırayla (`0001` … `0010`) yapıştırıp çalıştırın.
 3. Ortam değişkenleri:
    ```bash
    cp .env.example .env.local   # değerleri Supabase → Project Settings → API'den doldurun
@@ -57,6 +57,13 @@ Uygulama ve veritabanı (self-hosted Supabase) tek bir DigitalOcean sunucusunda 
 - **Öğrenciler:** liste numaralıdır (1., 2., …), sınıf mevcudu gösterilir. **Pasif** öğrenci listelerden ve mevcuttan çıkar ama silinmez (Yönetim → Pasif öğrenciler → Aktif yap). **Sil** kaydı, notları ve sunucudaki fotoğraf dosyasını kalıcı siler.
 - **Fotoğraflar** tarayıcıda, sonra sunucuda küçültülür (480 px WebP, ~40 KB).
 - Sınıf öğretmeni, yalnızca kendi sınıflarındaki branş öğretmenlerinin adını/branşını düzeltebilir ve hesabını silebilir; dersleri düzeltir/siler.
+
+### Dersler, katılım linki ve notlar (0010)
+
+- **Dersler sınıfa özeldir ve sıfırdan eklenir** (hazır liste yok, 4 dilde ad). Başka sınıflarınızdaki dersler çip olarak önerilir; her sınıfta ayrı eklenip çıkarılır.
+- **Link akışı:** önce ad (listeden seç / yaz) → sonra ders(ler) → sınıf ekranı. Birden fazla dersi olan öğretmen üstteki ders sekmelerinden, çıkış yapmadan geçiş yapar; notlar seçili derse bağlanır.
+- **Ad cihaza kilitlenir:** adı ilk seçen cihaz alır; başka cihaz o adla giremez. Sınıf öğretmeni *Cihaz kilidini sıfırla* ile açar.
+- **Notlar kilitlidir:** yazan öğretmen notunu sonradan düzeltemez/silemez; yalnızca sınıf öğretmeni (ve yönetici). Kural veritabanında (RLS) zorlanır.
 
 ### Derslere öğretmen atama
 

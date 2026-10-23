@@ -11,10 +11,12 @@ type Props = {
   students: Student[];
   /** Bugün bu öğretmenin not yazdığı öğrenciler */
   notedTodayIds: string[];
+  /** Seçili ders: notlar bu derse bağlanır */
+  subjectId: string | null;
 };
 
 /** Öğretmenin sınıf ekranı: arama, bugünkü ilerleme ve sayfadan çıkmadan hızlı not. */
-export function ClassRoster({ students, notedTodayIds }: Props) {
+export function ClassRoster({ students, notedTodayIds, subjectId }: Props) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [noted, setNoted] = useState(() => new Set(notedTodayIds));
@@ -104,7 +106,7 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
         </ul>
       )}
 
-      {active && <QuickNoteSheet student={active} onClose={() => setActive(null)} onSaved={() => onSaved(active)} />}
+      {active && <QuickNoteSheet student={active} subjectId={subjectId} onClose={() => setActive(null)} onSaved={() => onSaved(active)} />}
 
       {toast && (
         <div
@@ -118,7 +120,7 @@ export function ClassRoster({ students, notedTodayIds }: Props) {
   );
 }
 
-function QuickNoteSheet({ student, onClose, onSaved }: { student: Student; onClose: () => void; onSaved: () => void }) {
+function QuickNoteSheet({ student, subjectId, onClose, onSaved }: { student: Student; subjectId: string | null; onClose: () => void; onSaved: () => void }) {
   const { t } = useI18n();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -149,9 +151,9 @@ function QuickNoteSheet({ student, onClose, onSaved }: { student: Student; onClo
           </button>
         </div>
 
-        <NoteForm studentId={student.id} onSaved={onSaved} compact />
+        <NoteForm studentId={student.id} subjectId={subjectId} onSaved={onSaved} compact />
 
-        <Link href={`/teacher/students/${student.id}`} className="mt-2 flex min-h-11 items-center justify-center text-sm text-brand-700 underline">
+        <Link href={`/teacher/students/${student.id}${subjectId ? `?ders=${subjectId}` : ""}`} className="mt-2 flex min-h-11 items-center justify-center text-sm text-brand-700 underline">
           {t("roster.allMyNotes")}
         </Link>
       </div>

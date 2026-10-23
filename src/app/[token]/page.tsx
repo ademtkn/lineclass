@@ -2,10 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getProfile } from "@/lib/auth";
-import { branchLabel, type SubjectNames } from "@/lib/i18n/branches";
+import { branchLabel } from "@/lib/i18n/branches";
+import { claimStatuses } from "@/lib/claims";
 import { getT } from "@/lib/i18n/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { type Profile } from "@/lib/types";
 import { findClassByToken } from "@/lib/join";
 import { JOIN_CODE_RE } from "@/lib/join-code";
 import { joinAsCurrent, joinAsExisting, joinAsNew, switchUser } from "./actions";
@@ -18,7 +18,7 @@ export async function generateMetadata() {
 
 export default async function JoinPage(props: PageProps<"/[token]">) {
   const { token } = await props.params;
-  const { adim } = await props.searchParams;
+  const { adim, kilit } = await props.searchParams;
   // Kök adresteki her şey buraya düşer; davet kodu biçiminde olmayanlar normal 404
   if (!JOIN_CODE_RE.test(token)) notFound();
   const { t, locale } = await getT();
@@ -84,34 +84,25 @@ export default async function JoinPage(props: PageProps<"/[token]">) {
   // 2. adım bir oturum varken açılırsa karşılama kartındaki kısayola dön
   if (profile) redirect(`/${token}`);
 
-  // Bu sınıfa daha önce katılmış branş öğretmenleri
+  // Bu sınıfa daha önce katılmış (linkle oluşturulmuş) öğretmenler; adı başka cihazda alınmışsa kilitli görünür
   const admin = createAdminClient();
   const { data: access } = await admin
     .from("teacher_class_access")
-    .select("teacher:profiles(id, full_name, branch, role, via_link)")
+    .select("teacher:profiles(id, full_name, role, via_link)")
     .eq("class_id", cls.id);
-  const teachers = (access ?? [])
-    .map((a) => a.teacher as unknown as (Pick<Profile, "id" | "full_name" | "branch" | "role"> & { via_link: boolean }) | null)
-    // Yalnızca linkle katılmış hesaplar listelenir; şifreli hesaplar /login'den girer
-    .filter((t): t is NonNullable<typeof t> => !!t && t.role === "branch_teacher" && t.via_link)
-    .sort((a, b) => a.full_name.localeCompare(b.full_name, locale))
-    .map(({ id, full_name, branch }) => ({ id, full_name, branch }));
-  const { data: subjects } = await admin
-    .from("class_subjects")
-    .select("subject, names, teacher_id, teacher:profiles!class_subjects_teacher_id_fkey(full_name)")
-    .eq("class_id", cls.id);
-  const classSubjects = (subjects ?? []).map((x) => ({
-    subject: x.subject,
-    names: x.names as SubjectNames | null,
-    teacherId: x.teacher_id,
-    teacherName: (x.teacher as unknown as { full_name: string } | null)?.full_name ?? null,
-  }));
+  const found = (access ?? [])
+    .map((a) => a.teacher as unknown as { id: string; full_name: string; role: string; via_link: boolean } | null)
+    // Şifreli hesaplar /login'den girer
+    .filter((x): x is NonNullable<typeof x> => !!x && x.role === "branch_teacher" && x.via_link && !!x.full_name)
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, locale));
+  const statuses = await claimStatuses(found.map((x) => x.id));
+  const teachers = found.map((x) => ({ id: x.id, full_name: x.full_name, locked: statuses.get(x.id) === "locked" }));
 
   return (
     <Shell className={cls.name} subtitle={cls.classTeacherName} backHref={`/${token}`}>
       <TeacherPicker
         teachers={teachers}
-        classSubjects={classSubjects}
+        showLockedNotice={kilit === "1"}
         joinExisting={joinAsExisting.bind(null, token)}
         joinNew={joinAsNew.bind(null, token)}
       />

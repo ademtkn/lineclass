@@ -12,7 +12,7 @@ import { requireRole } from "@/lib/auth";
 import { ownedTeacherIds } from "@/lib/teachers";
 import { BRANCHES, branchLabel, subjectLabel, type SubjectNames } from "@/lib/i18n/branches";
 import { getT } from "@/lib/i18n/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 import {
   addStudent,
@@ -20,6 +20,7 @@ import {
   deleteClass,
   deleteStudent,
   deleteTeacher,
+  resetTeacherLock,
   setStudentActive,
   updateTeacher,
   regenerateJoinToken,
@@ -74,6 +75,21 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
   const passiveStudents = (students ?? []).filter((s) => !s.active);
   // Hesabı düzenlenebilir/silinebilir olanlar: yalnızca bu sınıf öğretmeninin sınıflarına giren branş öğretmenleri
   const owned = await ownedTeacherIds(profile.id, assigned.map((x) => x.id));
+  const { data: claims } = await createAdminClient()
+    .from("link_claims")
+    .select("teacher_id")
+    .in("teacher_id", assigned.map((x) => x.id));
+  const locked = new Set((claims ?? []).map((c) => c.teacher_id));
+
+  // Ders kütüphanesi: diğer sınıflarımda tanımlı ama bu sınıfta olmayan dersler (her sınıfın dersi kendine özel)
+  const { data: myClasses } = await supabase.from("classes").select("id").eq("class_teacher_id", profile.id);
+  const { data: allMine } = await supabase
+    .from("class_subjects")
+    .select("subject, names")
+    .in("class_id", (myClasses ?? []).map((c) => c.id))
+    .order("created_at");
+  const here = new Set(subjectRows.map((x) => x.subject));
+  const library = [...new Map((allMine ?? []).filter((x) => !here.has(x.subject)).map((x) => [x.subject, { subject: x.subject, names: x.names as SubjectNames | null }])).values()];
   const available = allTeachers.filter((x) => !assignedIds.has(x.id));
   const subjectsOf = (teacherId: string) =>
     subjectRows.filter((x) => x.teacher_id === teacherId).map((x) => subjectLabel(x.subject, x.names, locale));
@@ -89,6 +105,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
           <SubjectAssignments
             classId={classId}
             subjects={subjectRows}
+            library={library}
             teachers={allTeachers.map(({ id, full_name, branch }) => ({ id, full_name, branch }))}
           />
 
@@ -121,6 +138,7 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
                           ? t("manage.lessons", { list: lessons.join(", ") })
                           : `${x.branch ? branchLabel(x.branch, locale) : t("manage.noBranch")} · ${t("manage.noLesson")}`}
                         {x.via_link && ` · ${t("manage.viaLink")}`}
+                        {x.via_link && locked.has(x.id) && ` · 🔒 ${t("manage.deviceLocked")}`}
                       </p>
                     </div>
                     <form action={unassignTeacher}>
@@ -131,6 +149,18 @@ export default async function ManageClassPage(props: PageProps<"/admin/classes/[
                       </button>
                     </form>
                   </div>
+                  {x.via_link && locked.has(x.id) && (
+                    <form action={resetTeacherLock} className="mt-1">
+                      <input type="hidden" name="class_id" value={classId} />
+                      <input type="hidden" name="teacher_id" value={x.id} />
+                      <ConfirmButton
+                        message={t("manage.resetLockConfirm", { name: teacherName(x) })}
+                        className="min-h-8 text-xs text-amber-700 underline"
+                      >
+                        🔓 {t("manage.resetLock")}
+                      </ConfirmButton>
+                    </form>
+                  )}
                   {x.role === "branch_teacher" && (
                     <details className="mt-1">
                       <summary className="inline-flex min-h-8 cursor-pointer list-none items-center text-xs text-brand-700 underline">

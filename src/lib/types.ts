@@ -31,6 +31,7 @@ export type Note = {
   teacher_id: string;
   note_text: string;
   status: NoteStatus;
+  subject_id: string | null;
   created_at: string;
 };
 

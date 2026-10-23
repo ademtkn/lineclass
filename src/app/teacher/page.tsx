@@ -11,7 +11,7 @@ export default async function TeacherDashboard() {
   const { t, locale } = await getT();
 
   // İlk giriş: önce branş ve isim seçimi
-  if (!profile.branch || !profile.full_name) {
+  if (!profile.full_name) {
     return (
       <>
         <AppHeader profile={profile} title={t("teacher.welcome")} />

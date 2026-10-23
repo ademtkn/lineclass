@@ -10,24 +10,26 @@ import {
   type FormState,
 } from "@/app/admin/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { BRANCHES, BRANCH_NAMES, branchLabel, subjectLabel, type SubjectNames } from "@/lib/i18n/branches";
+import { BRANCH_NAMES, branchLabel, subjectLabel, type SubjectNames } from "@/lib/i18n/branches";
 import { useI18n } from "@/lib/i18n/client";
 import { LOCALES, LOCALE_META } from "@/lib/i18n/locales";
 
 type Subject = { id: string; subject: string; names: SubjectNames | null; teacher_id: string | null };
 type Teacher = { id: string; full_name: string; branch: string | null };
 
+type LibrarySubject = { subject: string; names: SubjectNames | null };
+
 type Props = {
   classId: string;
   subjects: Subject[];
   teachers: Teacher[];
+  /** Sınıf öğretmeninin diğer sınıflarında kullandığı, bu sınıfta henüz olmayan dersler */
+  library: LibrarySubject[];
 };
 
 /** Sınıfın dersleri: her derse tek dokunuşla öğretmen seçimi, eksik dersleri çiple ekleme, 4 dilde ad. */
-export function SubjectAssignments({ classId, subjects, teachers }: Props) {
+export function SubjectAssignments({ classId, subjects, teachers, library }: Props) {
   const { t, locale } = useI18n();
-  const existing = new Set(subjects.map((s) => s.subject));
-  const missing = BRANCHES.filter((b) => !existing.has(b));
   const unassignedCount = subjects.filter((s) => !s.teacher_id).length;
 
   return (
@@ -54,18 +56,21 @@ export function SubjectAssignments({ classId, subjects, teachers }: Props) {
       {/* Ders ekleme: hazır branş çipleri (4 dildeki adıyla) + 4 dilde özel ders */}
       <div className="card space-y-3">
         <p className="text-sm font-medium text-slate-600">{t("subjects.add")}</p>
-        {missing.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {missing.map((b) => (
-              <form key={b} action={(fd) => void addSubject({}, fd)}>
-                <input type="hidden" name="class_id" value={classId} />
-                <input type="hidden" name="subject" value={b} />
-                <ChipButton label={branchLabel(b, locale)} />
-              </form>
-            ))}
-          </div>
+        {library.length > 0 && (
+          <>
+            <p className="text-xs text-slate-500">{t("subjects.libraryHint")}</p>
+            <div className="flex flex-wrap gap-2">
+              {library.map((b) => (
+                <form key={b.subject} action={(fd) => void addSubject({}, fd)}>
+                  <input type="hidden" name="class_id" value={classId} />
+                  <input type="hidden" name="subject" value={b.subject} />
+                  <ChipButton label={subjectLabel(b.subject, b.names, locale)} />
+                </form>
+              ))}
+            </div>
+          </>
         )}
-        <details className="group rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+        <details open={library.length === 0 && subjects.length === 0} className="group rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
           <summary className="flex min-h-9 cursor-pointer list-none items-center font-medium text-brand-700">
             + {t("subjects.customTitle")}
           </summary>

@@ -37,13 +37,15 @@ const noopSubscribe = () => () => {};
 
 type Props = {
   studentId: string;
+  /** Notun bağlanacağı ders (öğretmenin seçili ders sekmesi) */
+  subjectId?: string | null;
   /** Hızlı not panelinde: kayıttan sonra paneli kapatmak için */
   onSaved?: () => void;
   /** Panelde başlık ve kart çerçevesi gereksiz */
   compact?: boolean;
 };
 
-export function NoteForm({ studentId, onSaved, compact = false }: Props) {
+export function NoteForm({ studentId, subjectId, onSaved, compact = false }: Props) {
   const { t, locale } = useI18n();
   const [text, setText] = useState("");
   const [status, setStatus] = useState<NoteStatus>("neutral");
@@ -91,6 +93,7 @@ export function NoteForm({ studentId, onSaved, compact = false }: Props) {
   return (
     <form action={action} className={compact ? "space-y-4" : "card space-y-4 p-5"}>
       <input type="hidden" name="student_id" value={studentId} />
+      {subjectId && <input type="hidden" name="subject_id" value={subjectId} />}
       <input type="hidden" name="status" value={status} />
 
       {!compact && <h2 className="text-lg font-bold">{t("noteForm.title")}</h2>}

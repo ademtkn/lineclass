@@ -333,12 +333,15 @@ export async function addSubject(_prev: FormState, fd: FormData): Promise<FormSt
   const classId = str(fd, "class_id");
   const branch = str(fd, "subject");
 
-  // Hazır ders çipi: 4 dildeki ad sözlükten gelir. Özel ders: öğretmen 4 dilde yazar.
+  // Çip: sınıf öğretmeninin diğer sınıflarındaki ders (adlar oradan kopyalanır). Yoksa 4 dilde yeni ders yazılır.
+  const supabase = await createClient();
   let subject: string;
   let names: SubjectNames;
-  if (branch && BRANCH_NAMES[branch]) {
-    subject = branch;
-    names = { ...BRANCH_NAMES[branch] };
+  if (branch) {
+    const { data: known } = await supabase.from("class_subjects").select("subject, names").eq("subject", branch).limit(1).maybeSingle();
+    if (!known) return { error: t("subjects.errName") };
+    subject = known.subject;
+    names = (known.names as SubjectNames | null) ?? BRANCH_NAMES[branch] ?? { tr: branch };
   } else {
     names = namesFrom(fd);
     const first = names.tr ?? names.en ?? names.ky ?? names.ru;
@@ -346,7 +349,6 @@ export async function addSubject(_prev: FormState, fd: FormData): Promise<FormSt
     subject = first;
   }
 
-  const supabase = await createClient();
   const { error } = await supabase
     .from("class_subjects")
     .upsert({ class_id: classId, subject, names }, { onConflict: "class_id,subject", ignoreDuplicates: true });
@@ -508,4 +510,49 @@ export async function deleteApplication(fd: FormData) {
     .eq("id", str(fd, "application_id"))
     .neq("status", "pending");
   revalidatePath("/admin/applications");
+}
+
+// ================================================================ Notlar (yalnızca sınıf öğretmeni)
+
+const NOTE_STATUSES = ["positive", "neutral", "concern"];
+
+/** Yazan öğretmen notunu değiştiremez; düzeltme yalnızca sınıf öğretmenindedir (RLS de bunu zorlar). */
+export async function updateNote(_prev: FormState, fd: FormData): Promise<FormState> {
+  await requireRole("class_teacher");
+  const { t } = await getT();
+  const text = str(fd, "note_text");
+  const status = str(fd, "status");
+  if (!text) return { error: t("noteForm.errEmpty") };
+  if (text.length > 4000) return { error: t("noteForm.errLong") };
+  if (!NOTE_STATUSES.includes(status)) return { error: t("noteForm.errStatus") };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("notes")
+    .update({ note_text: text, status })
+    .eq("id", str(fd, "note_id"))
+    .select("id");
+  if (error || !data?.length) return { error: t("noteForm.errSave") };
+
+  // Düzeltilen notun eski çevirileri geçersiz
+  await createAdminClient().from("note_translations").delete().eq("note_id", str(fd, "note_id"));
+  revalidatePath(`/admin/students/${str(fd, "student_id")}`);
+  return { ok: t("common.saved") };
+}
+
+/** Linkle katılan öğretmenin cihaz kilidini açar: adı sonra seçen ilk cihaz alır. Yalnızca kendi sınıfındaki öğretmen için. */
+export async function resetTeacherLock(fd: FormData) {
+  await requireRole("class_teacher");
+  const classId = str(fd, "class_id");
+  const teacherId = str(fd, "teacher_id");
+  // RLS: yalnızca kendi sınıfı görünür; öğretmenin o sınıfa erişimi olmalı
+  const { data: access } = await (await createClient())
+    .from("teacher_class_access")
+    .select("teacher_id")
+    .eq("class_id", classId)
+    .eq("teacher_id", teacherId)
+    .maybeSingle();
+  if (!access) return;
+  await createAdminClient().from("link_claims").delete().eq("teacher_id", teacherId);
+  revalidatePath(`/admin/classes/${classId}`);
 }

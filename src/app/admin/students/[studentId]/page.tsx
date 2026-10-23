@@ -118,7 +118,7 @@ export default async function AdminStudentPage(props: PageProps<"/admin/students
           <h2 className="mb-3 text-lg font-bold">
             {t("studentAdmin.comments")} <span className="text-slate-400">({notes.length})</span>
           </h2>
-          <NoteList notes={notes} currentUserId={profile.id} emptyText={t("studentAdmin.noComments")} />
+          <NoteList notes={notes} canManage emptyText={t("studentAdmin.noComments")} />
         </section>
       </main>
     </>

@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
-import { BRANCHES } from "@/lib/i18n/branches";
+import { claimOrVerify } from "@/lib/claims";
 import { getT } from "@/lib/i18n/server";
 import { findClassByToken } from "@/lib/join";
 
@@ -37,17 +37,21 @@ async function grantAccess(teacherId: string, classId: string) {
   if (error) throw error;
 }
 
-/** Zaten giriş yapmış öğretmen linki açtıysa: sınıfı kendi listesine ekler. */
+/** Zaten giriş yapmış öğretmen linki açtıysa: sınıfı listesine ekler, ders seçimine götürür. */
 export async function joinAsCurrent(token: string) {
   const cls = await findClassByToken(token);
   const profile = await getProfile();
   if (!cls || !profile) redirect(`/${token}`);
 
-  if (profile.role !== "super_admin") await grantAccess(profile.id, cls.id);
-  redirect(`/teacher/classes/${cls.id}`);
+  if (profile.role === "super_admin") redirect(`/${token}`);
+  await grantAccess(profile.id, cls.id);
+  redirect(profile.role === "branch_teacher" ? `/teacher/classes/${cls.id}/subjects` : `/teacher/classes/${cls.id}`);
 }
 
-/** Bu sınıfa daha önce katılmış bir branş öğretmeni olarak devam eder. */
+/**
+ * Listeden adına dokunan öğretmen: ad bu cihazda alınabiliyorsa (boş ya da bu cihaza ait) girer.
+ * Başka cihazda alınmışsa girilemez: sınıf öğretmeni kilidi sıfırlamalıdır.
+ */
 export async function joinAsExisting(token: string, fd: FormData) {
   const teacherId = String(fd.get("teacher_id") ?? "");
   const cls = await findClassByToken(token);
@@ -64,70 +68,53 @@ export async function joinAsExisting(token: string, fd: FormData) {
       .maybeSingle(),
   ]);
   // Link yalnızca bu sınıfa erişimi olan ve LİNKLE oluşturulmuş branş öğretmeni hesaplarını açar.
-  // Şifreyle oluşturulan hesaplar (admin, sınıf öğretmeni, admin'in açtığı öğretmenler) linkle açılamaz.
   if (!teacher || teacher.role !== "branch_teacher" || !teacher.via_link || !access) redirect(`/${token}`);
+  if (!(await claimOrVerify(teacherId))) redirect(`/${token}?adim=ogretmen&kilit=1`);
 
   await signInWithoutPassword(teacherId);
-  redirect(`/teacher/classes/${cls.id}`);
+  redirect(`/teacher/classes/${cls.id}/subjects`);
 }
 
-/** İlk kez gelen öğretmen: ad + branş ile şifresiz hesap açılır ve sınıfa eklenir. */
+/** Listede olmayan öğretmen: yalnızca adını yazar; dersleri bir sonraki adımda seçer. */
 export async function joinAsNew(token: string, _prev: JoinState, fd: FormData): Promise<JoinState> {
   const cls = await findClassByToken(token);
   const { t } = await getT();
   if (!cls) return { error: t("join.errLink") };
 
   const fullName = String(fd.get("full_name") ?? "").trim().replace(/\s+/g, " ");
-  const branch = String(fd.get("branch") ?? "");
   if (fullName.length < 3) return { error: t("join.errName") };
   const admin = createAdminClient();
-  if (!BRANCHES.includes(branch)) {
-    const { data: custom } = await admin
-      .from("class_subjects")
-      .select("id")
-      .eq("class_id", cls.id)
-      .eq("subject", branch)
-      .maybeSingle();
-    if (!custom) return { error: t("join.errBranch") };
-  }
 
-  // Aynı ad + branşla daha önce (başka bir sınıfın linkinden) katılmışsa aynı hesabı kullan.
-  // Yalnızca linkle oluşturulmuş hesaplar eşleşir: şifreli bir hesabın adını yazmak onu açmaz.
+  // Aynı adla linkle oluşturulmuş bir hesap varsa (başka sınıftan) yalnızca bu cihaz sahibiyse kullanılır.
   const { data: existing } = await admin
     .from("profiles")
     .select("id")
     .eq("role", "branch_teacher")
     .eq("via_link", true)
-    .eq("branch", branch)
     .ilike("full_name", fullName.replace(/[\\%_]/g, "\\$&"))
     .limit(1)
     .maybeSingle();
 
   let teacherId = existing?.id;
-
-  if (!teacherId) {
+  if (teacherId) {
+    if (!(await claimOrVerify(teacherId))) return { error: t("join.errTaken") };
+  } else {
     const { data, error } = await admin.auth.admin.createUser({
       email: `link-${randomUUID()}@ogretmen.lineclass.local`,
       // Kimsenin bilmediği rastgele şifre: hesap sadece sınıf linkiyle açılır
       password: randomBytes(32).toString("base64url"),
       email_confirm: true,
       app_metadata: { role: "branch_teacher", via_link: true },
-      user_metadata: { full_name: fullName, branch },
+      user_metadata: { full_name: fullName, branch: null },
     });
     if (error) return { error: t("join.errCreate") };
     teacherId = data.user.id;
+    await claimOrVerify(teacherId);
   }
 
   await grantAccess(teacherId, cls.id);
-  // Branşı, sınıfın öğretmeni olmayan bir dersiyle eşleşiyorsa o derse otomatik ata
-  await admin
-    .from("class_subjects")
-    .update({ teacher_id: teacherId })
-    .eq("class_id", cls.id)
-    .eq("subject", branch)
-    .is("teacher_id", null);
   await signInWithoutPassword(teacherId);
-  redirect(`/teacher/classes/${cls.id}`);
+  redirect(`/teacher/classes/${cls.id}/subjects`);
 }
 
 /** "Ben bu kişi değilim": mevcut oturumu kapatıp aynı linke döner. */
