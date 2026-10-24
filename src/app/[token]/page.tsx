@@ -136,9 +136,8 @@ async function Shell({
           <LanguageSwitcher />
         </div>
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 grid size-14 place-items-center rounded-3xl bg-brand-600 text-xl font-bold text-white">
-            LC
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.png" alt="LineClass" className="mx-auto mb-3 h-14 w-auto" />
           {className ? (
             <>
               <p className="text-sm text-slate-500">{t("join.header")}</p>

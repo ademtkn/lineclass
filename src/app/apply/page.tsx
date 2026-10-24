@@ -14,6 +14,8 @@ export default async function ApplyPage() {
           <LanguageSwitcher />
         </div>
         <div className="mb-6 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.png" alt="LineClass" className="mx-auto mb-3 h-14 w-auto" />
           <h1 className="text-2xl font-bold tracking-tight">{t("apply.title")}</h1>
           <p className="mt-1 text-slate-500">{t("apply.subtitle")}</p>
         </div>

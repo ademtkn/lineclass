@@ -17,10 +17,9 @@ export default function LoginPage() {
           <LanguageSwitcher />
         </div>
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 grid size-16 place-items-center rounded-3xl bg-brand-600 text-2xl font-bold text-white shadow-lg shadow-brand-600/30">
-            LC
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">LineClass</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="LineClass" width={200} className="mx-auto h-auto w-48" />
+          <h1 className="sr-only">LineClass</h1>
           <p className="mt-1 text-slate-500">{t("app.tagline")}</p>
         </div>
 

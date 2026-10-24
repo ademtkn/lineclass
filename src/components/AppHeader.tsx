@@ -55,6 +55,12 @@ export async function AppHeader({ profile, title, backHref }: Props) {
             ←
           </Link>
         )}
+        {!backHref && (
+          <Link href="/" aria-label="LineClass" className="shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.png" alt="LineClass" className="h-10 w-auto" />
+          </Link>
+        )}
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-bold">{title}</h1>
           <p className="truncate text-xs text-slate-500">
