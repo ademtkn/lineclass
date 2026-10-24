@@ -13,7 +13,8 @@ export default function LoginPage() {
   return (
     <main className="flex flex-1 flex-col justify-center px-5 py-10">
       <div className="mx-auto w-full max-w-sm">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex items-center justify-between">
+          <Link href="/" className="text-sm text-brand-700 underline">← {t("home.back")}</Link>
           <LanguageSwitcher />
         </div>
         <div className="mb-8 text-center">

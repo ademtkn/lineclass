@@ -1,5 +1,6 @@
 // İstemci ve sunucuda ortak: desteklenen diller ve dil adları.
-export const LOCALES = ["tr", "en", "ky", "ru"] as const;
+// Dil seçicide görünme sırası: EN · KG · RU · TR
+export const LOCALES = ["en", "ky", "ru", "tr"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "tr";
 export const LOCALE_COOKIE = "lc_lang";

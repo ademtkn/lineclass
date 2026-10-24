@@ -40,7 +40,7 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   // Kök adresteki sınıf davet linkleri (örn. /5a-k7m2qxp) girişsiz açılır
-  const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p)) || JOIN_CODE_RE.test(path.slice(1));
+  const isPublic = path === "/" || PUBLIC_PATHS.some((p) => path.startsWith(p)) || JOIN_CODE_RE.test(path.slice(1));
 
   if (!user && !isPublic && !path.startsWith("/api")) {
     const url = request.nextUrl.clone();

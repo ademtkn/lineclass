@@ -6,7 +6,7 @@ import { setLocale } from "@/lib/i18n/actions";
 import { useI18n } from "@/lib/i18n/client";
 import { isLocale, LOCALE_META, LOCALES, type Locale } from "@/lib/i18n/locales";
 
-/** TR · EN · KG · RU — seçim çerezde saklanır, sayfa yeni dille yeniden çizilir. */
+/** EN · KG · RU · TR — seçim çerezde saklanır, sayfa yeni dille yeniden çizilir. */
 export function LanguageSwitcher({ className = "", compact = false }: { className?: string; compact?: boolean }) {
   const { locale, t } = useI18n();
   const router = useRouter();
