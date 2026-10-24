@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LineClass</string>
+    <string name="title_activity_main">LineClass</string>
+    <string name="package_name">kg.lineclass.app</string>
+    <string name="custom_url_scheme">kg.lineclass.app</string>
+</resources>

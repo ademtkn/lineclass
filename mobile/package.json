@@ -1,0 +1,17 @@
+{
+  "name": "lineclass-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "sync": "cap sync",
+    "assets": "node scripts/make-assets.mjs",
+    "build:debug": "cd android && ./gradlew assembleDebug",
+    "build:release": "cd android && ./gradlew assembleRelease bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
+  }
+}

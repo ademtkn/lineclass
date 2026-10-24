@@ -1,0 +1,11 @@
+{
+  "appId": "kg.lineclass.app",
+  "appName": "LineClass",
+  "webDir": "www",
+  "server": {
+    "url": "https://lineclass.com.kg",
+    "cleartext": false,
+    "allowNavigation": ["lineclass.com.kg", "*.lineclass.com.kg"]
+  },
+  "android": { "backgroundColor": "#05080d" }
+}

@@ -36,7 +36,6 @@ export function PhotoInput({ className }: { className?: string }) {
       type="file"
       name="photo"
       accept="image/*"
-      capture="environment"
       onChange={onChange}
       className={
         className ??
